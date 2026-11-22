@@ -1,136 +1,309 @@
-const CORES = ["#111827","#f8fafc","#ef4444","#3b82f6","#10b981","#f59e0b","#8b5cf6","#ec4899","#06b6d4","#84cc16","#f97316","#6366f1","#14b8a6","#e11d48","#a855f7","#eab308"];
+// =========================================================================
+// MÓDULO DE JOGADORES (2 A 16), CORES PERSONALIZADAS E OBJETIVOS AMBIENTAIS
+// =========================================================================
 
-const OBJETIVOS_AMBIENTAIS = [
-  { titulo: "1. Guardião das Nascentes", desc1: "● Proteja nascentes (+3 pts/nascente).", desc2: "▲ Controle hídrico (+3 pts/nascente).", edu: "Nascentes são berços dos rios; sem mata ciliar ao redor, os rios secam.", calc: (b, m) => ptsLista(b, m?.rios?.map(r => [r.nascente.x, r.nascente.y]), 3) },
-  { titulo: "2. Corredor Fluvial Vivo", desc1: "● Defenda o curso dos rios (+2 pts/vértice).", desc2: "▲ Barragens e rotas (+2 pts/vértice).", edu: "Rios voadores e bacias hidrográficas conectam e irrigam todo o continente.", calc: (b, m) => ptsLista(b, m?.rios?.flatMap(r => r.vertices), 2) },
-  { titulo: "3. Pulmão e Clima (Amazônia)", desc1: "● Preserve a Amazônia (+2 pts/peça).", desc2: "▲ Avanço na Amazônia (+2 pts/peça).", edu: "A Amazônia regula o regime de chuvas de grande parte da América do Sul.", calc: (b, m) => ptsBioma(b, m, ["amazônia", "amazonia"], 2) },
-  { titulo: "4. Berço das Águas (Cerrado)", desc1: "● Defenda o Cerrado (+2 pts/peça).", desc2: "▲ Ocupação do Cerrado (+2 pts/peça).", edu: "O Cerrado abastece as principais bacias hidrográficas brasileiras com suas raízes profundas.", calc: (b, m) => ptsBioma(b, m, ["cerrado"], 2) },
-  { titulo: "5. Santuário Alagado (Pantanal)", desc1: "● Proteja o Pantanal (+3 pts/peça).", desc2: "▲ Domínio do Pantanal (+3 pts/peça).", edu: "O Pantanal funciona como uma esponja natural que filtra águas e previne enchentes.", calc: (b, m) => ptsBioma(b, m, ["pantanal"], 3) },
-  { titulo: "6. Corredor da Biodiversidade (Mata Atlântica)", desc1: "● Restaure a Mata Atlântica (+3 pts/peça).", desc2: "▲ Expansão Costeira (+3 pts/peça).", edu: "Um dos biomas mais ameaçados do planeta, vital para o abastecimento de água das cidades.", calc: (b, m) => ptsBioma(b, m, ["mata atlântica", "mata atlantica"], 3) },
-  { titulo: "7. Resiliência do Semiárido (Caatinga)", desc1: "● Conserve a Caatinga (+3 pts/peça).", desc2: "▲ Exploração do Semiárido (+3 pts/peça).", edu: "Bioma único no mundo, adaptado à seca e altamente eficiente na captura de carbono.", calc: (b, m) => ptsBioma(b, m, ["caatinga"], 3) },
-  { titulo: "8. Sentinela dos Campos (Pampa/Espinal)", desc1: "● Proteja os campos nativos (+2 pts/peça).", desc2: "▲ Avanço nos campos (+2 pts/peça).", edu: "Os campos sul-americanos evitam a erosão do solo e abrigam fauna campestre rara.", calc: (b, m) => ptsBioma(b, m, ["pampa", "espinal"], 2) },
-  { titulo: "9. Muralha das Cordilheiras", desc1: "● Proteja Andes/Atacama/Valdiviana (+2 pts/peça).", desc2: "▲ Rota Transandina (+2 pts/peça).", edu: "O degelo controlado dos Andes alimenta grandes rios que descem rumo ao continente.", calc: (b, m) => ptsBioma(b, m, ["andes", "atacama", "valdiviana"], 2) },
-  { titulo: "10. Mosaico Ecológico", desc1: "● Conecte biomas (+4 pts/bioma diferente).", desc2: "▲ Presença global (+4 pts/bioma diferente).", edu: "A conservação exige proteger todos os biomas de forma integrada, não apenas um.", calc: (b, m) => ptsDiversidade(b, m, 4) }
+const CORES_PADRAO = [
+  "#111827", "#f8fafc", "#ef4444", "#3b82f6",
+  "#10b981", "#f59e0b", "#8b5cf6", "#ec4899",
+  "#06b6d4", "#84cc16", "#f97316", "#6366f1",
+  "#14b8a6", "#e11d48", "#a855f7", "#eab308"
 ];
 
-function ptsLista(board, coords = [], peso) {
-  const pts = { one: 0, two: 0 }, vistos = new Set();
-  if (!coords) return pts;
-  for (const [x, y] of coords) {
-    const k = `${x},${y}`, eq = board[y]?.[x]?.equipe;
-    if (!vistos.has(k) && eq) {
-      vistos.add(k);
-      if (eq === 1) pts.one += peso;
-      else pts.two += peso;
+const OBJETIVOS_AMBIENTAIS = [
+  {
+    id: "nascentes",
+    titulo: "1. Guardião das Nascentes",
+    desc1: "● Proteja as nascentes: +3 pts por cada nascente ocupada por Círculos.",
+    desc2: "▲ Controle hídrico: +3 pts por cada nascente tomada por Triângulos.",
+    educativo: "Nascentes são berços dos rios; sem mata ciliar ao redor, os rios secam.",
+    calcular: (board, mapa) => contarPontosNascentes(board, mapa, 3)
+  },
+  {
+    id: "rios",
+    titulo: "2. Corredor Fluvial Vivo",
+    desc1: "● Defenda o curso dos rios: +2 pts por vértice de rio protegido por Círculos.",
+    desc2: "▲ Barragens e rotas: +2 pts por vértice de rio ocupado por Triângulos.",
+    educativo: "Rios voadores e bacias hidrográficas conectam e irrigam todo o continente.",
+    calcular: (board, mapa) => contarPontosRios(board, mapa, 2)
+  },
+  {
+    id: "amazonia",
+    titulo: "3. Pulmão e Clima (Amazônia)",
+    desc1: "● Preserve a Amazônia: +2 pts por peça Círculo na floresta amazônica.",
+    desc2: "▲ Avanço na Amazônia: +2 pts por peça Triângulo na floresta amazônica.",
+    educativo: "A Amazônia regula o regime de chuvas de grande parte da América do Sul.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Amazônia", "Amazonia"], 2)
+  },
+  {
+    id: "cerrado",
+    titulo: "4. Berço das Águas (Cerrado)",
+    desc1: "● Defenda o Cerrado: +2 pts por peça Círculo na savana mais rica do mundo.",
+    desc2: "▲ Ocupação do Cerrado: +2 pts por peça Triângulo neste bioma.",
+    educativo: "O Cerrado abastece as principais bacias hidrográficas brasileiras com suas raízes profundas.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Cerrado"], 2)
+  },
+  {
+    id: "pantanal",
+    titulo: "5. Santuário Alagado (Pantanal)",
+    desc1: "● Proteja o Pantanal: +3 pts por peça Círculo na maior planície alagável.",
+    desc2: "▲ Domínio do Pantanal: +3 pts por peça Triângulo nesta área úmida.",
+    educativo: "O Pantanal funciona como uma esponja natural que filtra águas e previne enchentes.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Pantanal"], 3)
+  },
+  {
+    id: "mata_atlantica",
+    titulo: "6. Corredor da Biodiversidade (Mata Atlântica)",
+    desc1: "● Restaure a Mata Atlântica: +3 pts por peça Círculo na faixa costeira.",
+    desc2: "▲ Expansão Costeira: +3 pts por peça Triângulo na Mata Atlântica.",
+    educativo: "Um dos biomas mais ameaçados do planeta, vital para o abastecimento de água das cidades.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Mata Atlântica", "Mata Atlantica"], 3)
+  },
+  {
+    id: "caatinga",
+    titulo: "7. Resiliência do Semiárido (Caatinga)",
+    desc1: "● Conserve a Caatinga: +3 pts por peça Círculo neste bioma exclusivamente brasileiro.",
+    desc2: "▲ Exploração do Semiárido: +3 pts por peça Triângulo na Caatinga.",
+    educativo: "Bioma único no mundo, adaptado à seca e altamente eficiente na captura de carbono.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Caatinga"], 3)
+  },
+  {
+    id: "campos_sul",
+    titulo: "8. Sentinela dos Campos (Pampa e Espinal)",
+    desc1: "● Proteja os campos nativos: +2 pts por peça Círculo no Pampa ou Espinal.",
+    desc2: "▲ Avanço nos campos: +2 pts por peça Triângulo no Pampa ou Espinal.",
+    educativo: "Os campos sul-americanos evitam a erosão do solo e abrigam fauna campestre rara.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Pampa", "Espinal"], 2)
+  },
+  {
+    id: "cordilheira",
+    titulo: "9. Muralha das Cordilheiras (Andes, Atacama e Valdiviana)",
+    desc1: "● Proteja as geleiras e encostas: +2 pts por peça Círculo nos Andes, Atacama ou Valdiviana.",
+    desc2: "▲ Rota Transandina: +2 pts por peça Triângulo nesses biomas.",
+    educativo: "O degelo controlado dos Andes alimenta grandes rios que descem rumo ao continente.",
+    calcular: (board, mapa) => contarPontosBioma(board, mapa, ["Andes", "Atacama", "Valdiviana", "Floresta Valdiviana"], 2)
+  },
+  {
+    id: "diversidade",
+    titulo: "10. Mosaico Ecológico (Biodiversidade)",
+    desc1: "● Conecte biomas: +4 pts para cada bioma diferente onde houver pelo menos 1 Círculo.",
+    desc2: "▲ Presença global: +4 pts para cada bioma diferente onde houver pelo menos 1 Triângulo.",
+    educativo: "A conservação exige proteger todos os biomas de forma integrada, não apenas um.",
+    calcular: (board, mapa) => contarBiomasDistintos(board, mapa, 4)
+  }
+];
+
+// =========================================================================
+// FUNÇÕES DE CÁLCULO DE PONTOS POR OBJETIVO
+// =========================================================================
+function contarPontosNascentes(board, mapa, peso) {
+  let pts = { team1: 0, team2: 0 };
+  if (!mapa || !mapa.rios) return pts;
+  for (const rio of mapa.rios) {
+    const { x, y } = rio.nascente;
+    const celula = board[y]?.[x];
+    if (celula && celula.equipe === 1) pts.team1 += peso;
+    if (celula && celula.equipe === 2) pts.team2 += peso;
+  }
+  return pts;
+}
+
+function contarPontosRios(board, mapa, peso) {
+  let pts = { team1: 0, team2: 0 };
+  if (!mapa || !mapa.rios) return pts;
+  const verticesContados = new Set();
+  for (const rio of mapa.rios) {
+    for (const [x, y] of rio.vertices) {
+      const key = `${x},${y}`;
+      if (verticesContados.has(key)) continue;
+      verticesContados.add(key);
+      const celula = board[y]?.[x];
+      if (celula && celula.equipe === 1) pts.team1 += peso;
+      if (celula && celula.equipe === 2) pts.team2 += peso;
     }
   }
   return pts;
 }
 
-function iterarTabuleiro(board, mapa, fn) {
-  if (!mapa) return;
-  for (let y = 1; y < board.length; y++)
-    for (let x = 1; x < board[y].length; x++)
-      if (board[y][x]) fn(board[y][x].equipe, getBiomaNoVertice(x, y));
-}
-
-function ptsBioma(board, mapa, alvos, peso) {
-  const pts = { one: 0, two: 0 };
-  iterarTabuleiro(board, mapa, (eq, b) => {
-    if (alvos.some(a => b.toLowerCase().includes(a))) {
-      if (eq === 1) pts.one += peso;
-      else pts.two += peso;
+function contarPontosBioma(board, mapa, nomesAlvo, peso) {
+  let pts = { team1: 0, team2: 0 };
+  if (!mapa) return pts;
+  for (let y = 1; y < board.length; y++) {
+    for (let x = 1; x < board[y].length; x++) {
+      const celula = board[y][x];
+      if (!celula) continue;
+      const bioma = getBiomaNoVertice(x, y);
+      if (nomesAlvo.some(n => bioma.toLowerCase().includes(n.toLowerCase()))) {
+        if (celula.equipe === 1) pts.team1 += peso;
+        if (celula.equipe === 2) pts.team2 += peso;
+      }
     }
-  });
+  }
   return pts;
 }
 
-function ptsDiversidade(board, mapa, peso) {
-  const s1 = new Set(), s2 = new Set();
-  iterarTabuleiro(board, mapa, (eq, b) => {
-    if (b && b !== "Oceano") (eq === 1 ? s1 : s2).add(b);
-  });
-  return { one: s1.size * peso, two: s2.size * peso };
+function contarBiomasDistintos(board, mapa, peso) {
+  const set1 = new Set();
+  const set2 = new Set();
+  if (!mapa) return { team1: 0, team2: 0 };
+  for (let y = 1; y < board.length; y++) {
+    for (let x = 1; x < board[y].length; x++) {
+      const celula = board[y][x];
+      if (!celula) continue;
+      const bioma = getBiomaNoVertice(x, y);
+      if (bioma && bioma !== "Oceano") {
+        if (celula.equipe === 1) set1.add(bioma);
+        if (celula.equipe === 2) set2.add(bioma);
+      }
+    }
+  }
+  return { team1: set1.size * peso, team2: set2.size * peso };
 }
 
-const session = { eq1: [], eq2: [], i1: 0, i2: 0, ativa: 1 };
-
-function configurarLobby() {
-  const lista = document.getElementById('lista-jogadores'), btnAdd = document.getElementById('btn-add-jogador');
-  if (!lista || !btnAdd) return;
-
-  const atualizarUI = () => {
-    const rows = lista.querySelectorAll('.jogador-row');
-    rows.forEach((r, i) => {
-      r.querySelector('.badge-equipe').textContent = i % 2 === 0 ? '● Defensor' : '▲ Expansão';
-      r.querySelector('.btn-remove').style.display = rows.length > 2 ? 'inline-block' : 'none';
-    });
-    btnAdd.disabled = rows.length >= 16;
-  };
-
-  const addJogador = () => {
-    const n = lista.querySelectorAll('.jogador-row').length;
-    if (n >= 16) return;
-    const row = document.createElement('div');
-    row.className = 'jogador-row';
-    row.innerHTML = `<span class="badge-equipe"></span><input type="text" class="in-nome" value="Jogador ${n + 1}" maxlength="20"><input type="color" class="in-cor" value="${CORES[n % CORES.length]}"><button type="button" class="btn-remove">✕</button>`;
-    row.querySelector('.btn-remove').onclick = () => { row.remove(); atualizarUI(); };
-    lista.appendChild(row);
-    atualizarUI();
-  };
-
-  lista.innerHTML = "";
-  addJogador(); addJogador();
-  btnAdd.onclick = addJogador;
-
-  document.getElementById('btn-iniciar').onclick = () => {
-    const rows = lista.querySelectorAll('.jogador-row');
-    const baralho = [...OBJETIVOS_AMBIENTAIS].sort(() => Math.random() - 0.5);
-    Object.assign(session, { eq1: [], eq2: [], i1: 0, i2: 0, ativa: 1 });
-
-    rows.forEach((r, i) => {
-      const eq = i % 2 === 0 ? 1 : 2;
-      const j = { id: i + 1, nome: r.querySelector('.in-nome').value.trim() || `Jogador ${i + 1}`, cor: r.querySelector('.in-cor').value, equipe: eq, obj: baralho[i % baralho.length], pts: 0 };
-      (eq === 1 ? session.eq1 : session.eq2).push(j);
-    });
-
-    document.getElementById('modal-setup').classList.add('hidden');
-    if (typeof initBoard === 'function') { initBoard(); render(); }
-  };
-}
-
-const getJogadorAtual = () => {
-  if (!session.eq1.length && !session.eq2.length) return null;
-  return session.ativa === 1 ? session.eq1[session.i1 % session.eq1.length] : session.eq2[session.i2 % session.eq2.length];
+// =========================================================================
+// GERENCIADOR DE EQUIPES E TURNOS ALTERNADOS (2 A 16 JOGADORES)
+// =========================================================================
+const gameSession = {
+  equipe1: [], // Círculos (Defensores)
+  equipe2: [], // Triângulos (Expansão)
+  idx1: 0,
+  idx2: 0,
+  equipeAtiva: 1
 };
 
+function configurarLobby() {
+  const lista = document.getElementById('lista-jogadores');
+  const btnAdd = document.getElementById('btn-add-jogador');
+  const btnIniciar = document.getElementById('btn-iniciar');
+
+  if (!lista || !btnAdd || !btnIniciar) return;
+
+  const atualizarIndicesERegras = () => {
+    const linhas = lista.querySelectorAll('.jogador-row');
+    linhas.forEach((row, index) => {
+      const isCirculo = index % 2 === 0;
+      row.querySelector('.badge-equipe').textContent = isCirculo ? '● Defensor' : '▲ Expansão';
+      const btnRem = row.querySelector('.btn-remove');
+      btnRem.style.display = linhas.length > 2 ? 'inline-block' : 'none';
+    });
+    btnAdd.disabled = linhas.length >= 16;
+  };
+
+  const adicionarLinhaJogador = (nomePadrao = "", corPadrao = "") => {
+    const qtdAtual = lista.querySelectorAll('.jogador-row').length;
+    if (qtdAtual >= 16) return;
+
+    const cor = corPadrao || CORES_PADRAO[qtdAtual % CORES_PADRAO.length];
+    const nome = nomePadrao || `Jogador ${qtdAtual + 1}`;
+
+    const row = document.createElement('div');
+    row.className = 'jogador-row';
+    row.innerHTML = `
+      <span class="badge-equipe"></span>
+      <input type="text" class="input-nome" value="${nome}" placeholder="Nome do jogador" maxlength="20" />
+      <input type="color" class="input-cor" value="${cor}" title="Escolha a cor da peça" />
+      <button type="button" class="btn-remove" title="Remover jogador">✕</button>
+    `;
+
+    row.querySelector('.btn-remove').onclick = () => {
+      row.remove();
+      atualizarIndicesERegras();
+    };
+
+    lista.appendChild(row);
+    atualizarIndicesERegras();
+  };
+
+  // Inicia com 2 jogadores padrão
+  lista.innerHTML = "";
+  adicionarLinhaJogador("Jogador 1", CORES_PADRAO[0]);
+  adicionarLinhaJogador("Jogador 2", CORES_PADRAO[1]);
+
+  btnAdd.onclick = () => adicionarLinhaJogador();
+
+  btnIniciar.onclick = () => {
+    const linhas = lista.querySelectorAll('.jogador-row');
+    if (linhas.length < 2) return;
+
+    const baralho = [...OBJETIVOS_AMBIENTAIS].sort(() => Math.random() - 0.5);
+
+    gameSession.equipe1 = [];
+    gameSession.equipe2 = [];
+    gameSession.idx1 = 0;
+    gameSession.idx2 = 0;
+    gameSession.equipeAtiva = 1;
+
+    linhas.forEach((row, i) => {
+      const nome = row.querySelector('.input-nome').value.trim() || `Jogador ${i + 1}`;
+      const cor = row.querySelector('.input-cor').value;
+      const objetivo = baralho[i % baralho.length];
+      const equipe = i % 2 === 0 ? 1 : 2;
+const jogador = { id: i + 1, nome, cor, equipe, objetivo, pontos: 0 };
+if (equipe === 1) gameSession.equipe1.push(jogador);
+else gameSession.equipe2.push(jogador);
+});
+document.getElementById('modal-setup').classList.add('hidden');
+if (typeof initBoard === 'function') {
+initBoard();
+render();
+}
+};
+}
+function getJogadorAtual() {
+if (gameSession.equipe1.length === 0 && gameSession.equipe2.length === 0) return null;
+if (gameSession.equipeAtiva === 1) {
+return gameSession.equipe1[gameSession.idx1 % gameSession.equipe1.length];
+} else {
+return gameSession.equipe2[gameSession.idx2 % gameSession.equipe2.length];
+}
+}
 function avancarTurnoAlternado() {
-  session.ativa === 1 ? session.i1++ : session.i2++;
-  return (session.ativa = session.ativa === 1 ? 2 : 1);
+if (gameSession.equipeAtiva === 1) {
+gameSession.idx1++;
+gameSession.equipeAtiva = 2;
+} else {
+gameSession.idx2++;
+gameSession.equipeAtiva = 1;
 }
-
+return gameSession.equipeAtiva;
+}
 function atualizarPontuacaoEInterface(board, mapa, caps) {
-  const soma = (eq, capBase) => eq.reduce((acc, j) => {
-    const res = j.obj.calc(board, mapa);
-    j.pts = j.equipe === 1 ? res.one : res.two;
-    return acc + j.pts;
-  }, capBase);
-
-  document.getElementById('c1').textContent = soma(session.eq1, caps.one);
-  document.getElementById('c2').textContent = soma(session.eq2, caps.two);
-
-  const j = getJogadorAtual();
-  if (!j) return;
-  document.getElementById('turno').innerHTML = `<span class="cor-indicador" style="background:${j.cor}"></span><span>${j.equipe === 1 ? "●" : "▲"} Vez de ${j.nome} (${j.equipe === 1 ? "Defensor" : "Expansão"})</span>`;
-  document.getElementById('obj-titulo').textContent = `${j.obj.titulo} — ${j.nome}`;
-  document.getElementById('obj-desc').innerHTML = `${j.equipe === 1 ? j.obj.desc1 : j.obj.desc2}<br><em>💡 Sabia? ${j.obj.edu}</em>`;
-  document.getElementById('obj-pts').textContent = `Missão: +${j.pts} pts`;
+let totalEquipe1 = caps.team1;
+let totalEquipe2 = caps.team2;
+for (const j of gameSession.equipe1) {
+const res = j.objetivo.calcular(board, mapa);
+j.pontos = res.team1;
+totalEquipe1 += j.pontos;
 }
-
+for (const j of gameSession.equipe2) {
+const res = j.objetivo.calcular(board, mapa);
+j.pontos = res.team2;
+totalEquipe2 += j.pontos;
+}
+document.getElementById('c1').textContent = totalEquipe1;
+document.getElementById('c2').textContent = totalEquipe2;
+const atual = getJogadorAtual();
+if (atual) {
+const simbolo = atual.equipe === 1 ? "●" : "▲";
+const papel = atual.equipe === 1 ? "Defensor" : "Expansão";
+document.getElementById('turno').innerHTML = <span class="cor-indicador" style="background: ${atual.cor};"></span> <span>${simbolo} Vez de ${atual.nome} (${papel})</span>;
+document.getElementById('obj-titulo').textContent = ${atual.objetivo.titulo} — ${atual.nome};
+document.getElementById('obj-desc').innerHTML = ${atual.equipe === 1 ? atual.objetivo.desc1 : atual.objetivo.desc2}<br> <em>💡 Sabia? ${atual.objetivo.educativo}</em>;
+document.getElementById('obj-pts').textContent = Missão: +${atual.pontos} pts;
+}
+}
 function exibirPlacarGeral(caps) {
-  const fmt = (eq, ic) => eq.map(j => `${ic} ${j.nome}: ${j.pts} pts (${j.obj.titulo})`).join('\n');
-  alert(`=== PLACAR GERAL ===\nCapturas: ● Defensores (${caps.one} pts) | ▲ Expansão (${caps.two} pts)\n\n--- DEFENSORES ---\n${fmt(session.eq1, "●")}\n\n--- EXPANSÃO ---\n${fmt(session.eq2, "▲")}`);
+const linhas = [
+=== PLACAR GERAL ===,
+Capturas: ● Defensores (${caps.team1} pts) | ▲ Expansão (${caps.team2} pts)\n,
+--- EQUIPE CÍRCULO (DEFENSORES) ---,
+...gameSession.equipe1.map(j => ● ${j.nome}: ${j.pontos} pts (${j.objetivo.titulo})),
+\n--- EQUIPE TRIÂNGULO (EXPANSÃO) ---,
+...gameSession.equipe2.map(j => ▲ ${j.nome}: ${j.pontos} pts (${j.objetivo.titulo}))
+];
+alert(linhas.join('\n'));
 }
-
-if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', configurarLobby);
-else configurarLobby();
+if (document.readyState === 'loading') {
+window.addEventListener('DOMContentLoaded', configurarLobby);
+} else {
+configurarLobby();
+}
