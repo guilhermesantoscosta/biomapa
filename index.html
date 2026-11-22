@@ -33,14 +33,14 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.92);
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 100;
+      z-index: 999;
       padding: 16px;
     }
-    .modal-overlay.hidden { display: none; }
+    .modal-overlay.hidden { display: none !important; }
 
     .modal-box {
       background: var(--bg-panel);
@@ -272,16 +272,16 @@
   <!-- PAINEL SUPERIOR (HUD) -->
   <header class="hud">
     <div class="hud-top">
-      <div class="turno" id="turno">Carregando mapa...</div>
+      <div class="turno" id="turno">Aguardando jogadores...</div>
       <div class="placar">
         <span>● Defensores: <strong id="c1">0</strong> pts</span>
         <span>▲ Expansão: <strong id="c2">0</strong> pts</span>
       </div>
       <div class="controles">
-        <button id="btn-modo" class="ativo">Só Continente</button>
-        <button id="btn-pass">Passar</button>
-        <button id="btn-placar">Placar Geral</button>
-        <button id="btn-reset">Nova Partida</button>
+        <button type="button" id="btn-modo" class="ativo">Só Continente</button>
+        <button type="button" id="btn-pass">Passar</button>
+        <button type="button" id="btn-placar">Placar Geral</button>
+        <button type="button" id="btn-reset">Nova Partida</button>
       </div>
     </div>
 
@@ -318,4 +318,3 @@
         <path class="caat"    d="M23,6h2v1h-2z M23,7h4v1h-4z M23,8h5v1h-5z M23,9h4v2h-4z M23,11h3v1h-3z" />
         <path class="cerrado" d="M22,8h1v1h-1z M21,9h2v1h-2z M19,10h4v1h-4z M18,11h5v1h-5z M11,11h3v1h-3z M16,12h7v2h-7z M16,14h6v1h-6z M16,15h4v3h-4z" />
         <path class="pant"    d="M14,11h2v1h-2z M8,12h8v1H8z M7,13h9v1H7z M10,14h6v2h-6z M10,16h6v2h-6z" />
-        <path class="mata"    d="M27,7h1v1h-1z M28,8h1v1h-1z M27,9h1v2h-1z M26,11h1v1h-1z M23,12h4v2h-4z M22,14h4v1h-4z M20,15h5v1h-5z M18,16h6v1h-6z M18,17h5v1h-5z M19,18h3v1h-3z" />
