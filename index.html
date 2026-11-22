@@ -3,70 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Go América do Sul</title>
+  <title>Go América do Sul — Biomapa</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 14px; }
-    .hud {
-      width: 100%; max-width: 960px; background: #1e293b; border: 1px solid #334155;
-      border-radius: 12px; padding: 12px 18px; margin-bottom: 14px;
-      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --accent: #0284c7;
+      --accent-hover: #38bdf8;
     }
-    .turno { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 17px; }
-    .placar { display: flex; gap: 16px; font-size: 14px; color: #cbd5e1; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px;
+      min-height: 100vh;
+    }
+
+    /* Painel Superior (HUD) */
+    .hud {
+      width: 100%;
+      max-width: 960px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .turno { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+    .placar { display: flex; gap: 16px; font-size: 14px; color: var(--text-muted); }
     .placar strong { color: #fff; font-size: 16px; }
+
+    .controles { display: flex; gap: 8px; }
     button {
-      background: #334155; color: #fff; border: 1px solid #475569; padding: 7px 12px;
-      border-radius: 8px; cursor: pointer; font-weight: 600;
+      background: var(--border);
+      color: #fff;
+      border: 1px solid #475569;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
     }
     button:hover { background: #475569; }
-    button.ativo { background: #0284c7; border-color: #38bdf8; }
-    .aviso { width: 100%; text-align: center; font-size: 13px; color: #fbbf24; min-height: 18px; }
-    .board {
-      width: 100%; max-width: 880px; aspect-ratio: 3/4; border-radius: 12px;
-      overflow: hidden; border: 3px solid #334155; background: #38bdf8;
+    button.ativo { background: var(--accent); border-color: var(--accent-hover); }
+
+    .aviso {
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: #fbbf24;
+      min-height: 18px;
     }
+
+    /* Tabuleiro SVG */
+    .board {
+      width: 100%;
+      max-width: 880px;
+      aspect-ratio: 3/4;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 3px solid var(--border);
+      background: #38bdf8;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
     svg { width: 100%; height: 100%; display: block; cursor: crosshair; }
 
-    /* Estilos do Mapa & Peças */
-    .mar     { fill: #38bdf8; } .andes   { fill: #64748b; } .atacama { fill: #d97706; }
-    .patag   { fill: #d6d3d1; } .valdiv  { fill: #065f46; } .amaz    { fill: #15803d; }
-    .llanos  { fill: #fde047; } .cerrado { fill: #eab308; } .caat    { fill: #fb923c; }
-    .mata    { fill: #4ade80; } .pant    { fill: #84cc16; } .pampa   { fill: #bef264; }
+    /* Biomas */
+    .mar     { fill: #38bdf8; }
+    .andes   { fill: #64748b; }
+    .atacama { fill: #d97706; }
+    .patag   { fill: #d6d3d1; }
+    .valdiv  { fill: #065f46; }
+    .amaz    { fill: #15803d; }
+    .llanos  { fill: #fde047; }
+    .cerrado { fill: #eab308; }
+    .caat    { fill: #fb923c; }
+    .mata    { fill: #4ade80; }
+    .pant    { fill: #84cc16; }
+    .pampa   { fill: #bef264; }
     .espinal { fill: #a3a380; }
-    .borda-br{ stroke: #052e16; stroke-width: 0.08; fill: none; stroke-linecap: square; }
-    .rio     { stroke: #0284c7; stroke-width: 0.08; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .nascente{ fill: #0369a1; stroke: #fff; stroke-width: 0.04; }
-    .p1      { fill: #111827; stroke: #f8fafc; stroke-width: 0.05; }
-    .p2      { fill: #f8fafc; stroke: #111827; stroke-width: 0.05; stroke-linejoin: round; }
-    .ghost   { opacity: 0.45; pointer-events: none; }
-    .last    { fill: #ef4444; pointer-events: none; }
+
+    /* Fronteiras e Hidrografia */
+    .borda-br { stroke: #052e16; stroke-width: 0.08; fill: none; stroke-linecap: square; }
+    .rio      { stroke: #0284c7; stroke-width: 0.09; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .nascente { fill: #0369a1; stroke: #fff; stroke-width: 0.04; }
+
+    /* Peças */
+    .p1    { fill: #111827; stroke: #f8fafc; stroke-width: 0.05; }
+    .p2    { fill: #f8fafc; stroke: #111827; stroke-width: 0.05; stroke-linejoin: round; }
+    .ghost { opacity: 0.45; pointer-events: none; }
+    .last  { fill: #ef4444; pointer-events: none; }
   </style>
 </head>
 <body>
 
-  <div class="hud">
+  <header class="hud">
     <div class="turno" id="turno">Carregando mapa...</div>
     <div class="placar">
       <span>● Círculos: <strong id="c1">0</strong></span>
       <span>▲ Triângulos: <strong id="c2">0</strong></span>
     </div>
-    <div>
+    <div class="controles">
       <button id="btn-modo" class="ativo">Só Continente</button>
       <button id="btn-pass">Passar</button>
       <button id="btn-reset">Reiniciar</button>
     </div>
     <div class="aviso" id="aviso"></div>
-  </div>
+  </header>
 
-  <div class="board">
+  <main class="board">
     <svg id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
       <defs>
         <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
           <path d="M 0 60 H 60 V 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity="0.35" />
         </pattern>
       </defs>
+
       <rect width="100%" height="100%" class="mar" />
+
       <g transform="scale(60)" id="mapa">
         <path class="andes"   d="M5,2h3v1H5z M4,3h3v1H4z M3,4h3v3H3z M4,7h3v2H4z M5,9h3v2H5z M7,11h2v3H7z M8,14h2v11H8z M8,25h1v8H8z" />
         <path class="atacama" d="M3,7h1v2H3z M4,9h1v2H4z M5,11h2v3H5z M6,14h2v3H6z" />
@@ -83,146 +152,235 @@
         <path class="borda-br" d="M13,4h3v1h2V4h2v1h1v1h4v1h3v1h1v1h-1v2h-1v3h-1v1h-1v1h-1v1h-1v1h-1v1h-1v1h-3v1h-2v-2h-1v-1h1v-2h-1v-2h-1v-2h-1v-1h-1v-1h-2V8H9V7h2V6h2Z" />
         <g id="camada-rios"></g>
       </g>
+
       <rect width="100%" height="100%" fill="url(#grid)" pointer-events="none" />
       <g transform="scale(60)" id="ghost"></g>
       <g transform="scale(60)" id="pecas"></g>
     </svg>
-  </div>
+  </main>
 
   <script>
     // =========================================================================
-    // CONFIGURAÇÃO DO REPOSITÓRIO GITHUB (Substitua pelo seu usuário/repositório)
+    // CONFIGURAÇÃO DO REPOSITÓRIO PÚBLICO GITHUB
     // =========================================================================
     const GITHUB_JSON_URL = "https://githubusercontent.com";
     const LOCAL_JSON_URL  = "./mapa-dados.json";
 
-    const COLS = 30, ROWS = 40, CELL = 60;
-    const svg = document.getElementById('svg');
-    const elPecas = document.getElementById('pecas');
-    const elGhost = document.getElementById('ghost');
-    const elAviso = document.getElementById('aviso');
+    const dom = {
+      svg: document.getElementById('svg'),
+      pecas: document.getElementById('pecas'),
+      ghost: document.getElementById('ghost'),
+      rios: document.getElementById('camada-rios'),
+      aviso: document.getElementById('aviso'),
+      turno: document.getElementById('turno'),
+      c1: document.getElementById('c1'),
+      c2: document.getElementById('c2'),
+      btnModo: document.getElementById('btn-modo'),
+      btnPass: document.getElementById('btn-pass'),
+      btnReset: document.getElementById('btn-reset')
+    };
 
-    let mapaData = null;
-    let board = Array.from({ length: ROWS + 1 }, () => Array(COLS + 1).fill(0));
-    let turn = 1, caps = { 1: 0, 2: 0 }, lastMove = null, landOnly = true;
+    const state = {
+      cols: 30,
+      rows: 40,
+      cell: 60,
+      mapa: null,
+      board: [],
+      turn: 1,
+      caps: { 1: 0, 2: 0 },
+      lastMove: null,
+      landOnly: true
+    };
 
-    // 1. IMPORTAÇÃO DO JSON (Tenta o arquivo local do repo primeiro, depois o raw do GitHub)
+    const setAviso = (txt) => { dom.aviso.textContent = txt; };
+
+    function initBoard() {
+      state.board = Array.from({ length: state.rows + 1 }, () => Array(state.cols + 1).fill(0));
+      state.caps = { 1: 0, 2: 0 };
+      state.turn = 1;
+      state.lastMove = null;
+    }
+
+    // =========================================================================
+    // 1. IMPORTAÇÃO DO JSON DO REPOSITÓRIO
+    // =========================================================================
     async function carregarMapa() {
       try {
+        // Prioriza o arquivo local (útil no GitHub Pages) e usa o Raw como fallback
         let res = await fetch(LOCAL_JSON_URL).catch(() => null);
         if (!res || !res.ok) res = await fetch(GITHUB_JSON_URL);
-        if (!res.ok) throw new Error("Arquivo mapa-dados.json não encontrado.");
-        
-        mapaData = await res.json();
-        desenharRios(mapaData.rios);
-        aviso("Mapa importado com sucesso! Clique nos vértices para jogar.");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        state.mapa = await res.json();
+
+        if (state.mapa.config) {
+          state.cols = state.mapa.config.colunas || 30;
+          state.rows = state.mapa.config.linhas || 40;
+          state.cell = state.mapa.config.tamanhoCelula || 60;
+        }
+
+        initBoard();
+        desenharRios(state.mapa.rios);
+        setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
         render();
       } catch (err) {
-        aviso("Erro ao carregar mapa-dados.json: verifique o link do GitHub no código.");
-        console.error(err);
+        setAviso("Erro ao carregar mapa-dados.json. Verifique se o repositório está público.");
+        console.error("Falha ao carregar JSON:", err);
       }
     }
 
-    // Desenha rios e nascentes dinamicamente a partir do JSON importado
     function desenharRios(rios = []) {
-      const gRios = document.getElementById('camada-rios');
-      gRios.innerHTML = rios.map(r => {
-        const d = r.vertices.map((v, i) => `${i ? 'L' : 'M'}${v},${v}`).join(' ');
-        return `<path class="rio" d="${d}" /><circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente" />`;
+      dom.rios.innerHTML = rios.map(r => {
+        const d = r.vertices.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
+        return `<path class="rio" d="${d}"><title>${r.nome}</title></path>` +
+               `<circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente"><title>Nascente: ${r.nome}</title></circle>`;
       }).join('');
     }
 
-    // Verifica na matriz importada do JSON se o vértice toca o continente (terreno > 0)
-    const isLand = (vx, vy) => mapaData && [,, [vx-1,vy], ].some(([x, y]) =>
-      y >= 0 && y < ROWS && x >= 0 && x < COLS && mapaData.grid[y][x] > 0
-    );
+    // =========================================================================
+    // 2. REGRAS DE TERRENO & MOTOR DO GO
+    // =========================================================================
+    const celulasAdjacentes = (vx, vy) => [
+      [vx - 1, vy - 1], [vx, vy - 1],
+      [vx - 1, vy],     [vx, vy]
+    ].filter(([x, y]) => y >= 0 && y < state.rows && x >= 0 && x < state.cols);
 
-    const neighbors = (vx, vy) => [[vx,vy-1], [vx,vy+1], [vx-1,vy], [vx+1,vy]].filter(([x, y]) =>
-      x >= 1 && x < COLS && y >= 1 && y < ROWS && (!landOnly || isLand(x, y))
-    );
+    function isLand(vx, vy) {
+      if (!state.mapa) return false;
+      return celulasAdjacentes(vx, vy).some(([x, y]) => {
+        const cod = state.mapa.grid[y][x];
+        return state.mapa.terrenos?.[cod]?.continente ?? (cod > 0);
+      });
+    }
 
-    // 2. MOTOR DO GO (Grupos, Liberdades, Capturas e Suicídio)
-    function getGroup(sx, sy, state) {
-      const color = state[sy][sx], visited = new Set([`${sx},${sy}`]), libs = new Set(), stones = [], q = [[sx, sy]];
-      while (q.length) {
-        const [x, y] = q.shift();
+    function getBiomaNoVertice(vx, vy) {
+      if (!state.mapa) return "";
+      for (const [x, y] of celulasAdjacentes(vx, vy)) {
+        const cod = state.mapa.grid[y][x];
+        if (cod > 0 && state.mapa.terrenos?.[cod]) {
+          return state.mapa.terrenos[cod].nome;
+        }
+      }
+      return "Oceano";
+    }
+
+    function neighbors(vx, vy) {
+      return [[vx, vy - 1], [vx, vy + 1], [vx - 1, vy], [vx + 1, vy]].filter(([x, y]) =>
+        x >= 1 && x < state.cols &&
+        y >= 1 && y < state.rows &&
+          (!state.landOnly || isLand(x, y))
+          );
+    }
+    
+    function getGroup(sx, sy, boardState) {
+      const color = boardState[sy][sx];
+      const visited = new Set([${sx},${sy}]);
+      const libs = new Set();
+      const stones = [];
+      const queue = [[sx, sy]];
+      while (queue.length) {
+      const [x, y] = queue.shift();
         stones.push([x, y]);
         for (const [nx, ny] of neighbors(x, y)) {
-          const k = `${nx},${ny}`, v = state[ny][nx];
-          if (v === 0) libs.add(k);
-          else if (v === color && !visited.has(k)) { visited.add(k); q.push([nx, ny]); }
+          const key = ${nx},${ny};
+          const val = boardState[ny][nx];
+          if (val === 0) libs.add(key);
+          else if (val === color && !visited.has(key)) {
+            visited.add(key);
+            queue.push([nx, ny]);
+            }
+          }
         }
-      }
-      return { stones, libs: libs.size };
-    }
+        return { stones, libs: libs.size };
+        }
 
     function play(vx, vy) {
-      if (!mapaData || vx < 1 || vx >= COLS || vy < 1 || vy >= ROWS) return;
-      if (landOnly && !isLand(vx, vy)) return aviso("Jogue apenas nos vértices do continente.");
-      if (board[vy][vx] !== 0) return aviso("Vértice já ocupado.");
-
-      const next = board.map(r => [...r]);
-      next[vy][vx] = turn;
-      const opp = turn === 1 ? 2 : 1;
-      let captured = 0;
-
+      if (!state.mapa || vx < 1 || vx >= state.cols || vy < 1 || vy >= state.rows) return;
+      if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
+      if (state.board[vy][vx] !== 0) return setAviso("Vértice já ocupado.");
+        const nextBoard = state.board.map(row => [...row]);
+        nextBoard[vy][vx] = state.turn;
+        const opp = state.turn === 1 ? 2 : 1;
+        let captured = 0;
       for (const [nx, ny] of neighbors(vx, vy)) {
-        if (next[ny][nx] === opp) {
-          const g = getGroup(nx, ny, next);
-          if (g.libs === 0) { g.stones.forEach(([gx, gy]) => next[gy][gx] = 0); captured += g.stones.length; }
+        if (nextBoard[ny][nx] === opp) {
+          const group = getGroup(nx, ny, nextBoard);
+        if (group.libs === 0) {
+          group.stones.forEach(([gx, gy]) => nextBoard[gy][gx] = 0);
+          captured += group.stones.length;
+          }
         }
       }
-
-      if (getGroup(vx, vy, next).libs === 0) return aviso("Jogada inválida (Suicídio): sem liberdades.");
-
-      board = next;
-      caps[turn] += captured;
-      lastMove = { x: vx, y: vy };
-      turn = opp;
-      aviso(captured ? `Captura! +${captured} peça(s).` : "");
-      render();
-    }
-
-    // 3. RENDERIZAÇÃO OTIMIZADA VIA STRING SVG
-    const shapeSVG = (x, y, player, extra = "") => player === 1
-      ? `<circle cx="${x}" cy="${y}" r="0.36" class="p1 ${extra}" />`
-      : `<polygon points="${x},${y-0.42} ${x-0.38},${y+0.32} ${x+0.38},${y+0.32}" class="p2 ${extra}" />`;
-
-    function render() {
-      let html = "";
-      for (let y = 1; y < ROWS; y++)
-        for (let x = 1; x < COLS; x++)
-          if (board[y][x]) html += shapeSVG(x, y, board[y][x]);
-
-      if (lastMove) html += `<circle cx="${lastMove.x}" cy="${lastMove.y}" r="0.09" class="last" />`;
-      elPecas.innerHTML = html;
-
-      document.getElementById('c1').textContent = caps;
-      document.getElementById('c2').textContent = caps;
-      document.getElementById('turno').textContent = turn === 1 ? "● Vez: Círculo (Jogador 1)" : "▲ Vez: Triângulo (Jogador 2)";
+      if (getGroup(vx, vy, nextBoard).libs === 0) {
+        return setAviso("Jogada inválida (Suicídio): grupo sem liberdades.");
+      }
+    state.board = nextBoard;
+    state.caps[state.turn] += captured;
+    state.lastMove = { x: vx, y: vy };
+    state.turn = opp;
+    setAviso(captured ? Captura! +${captured} peça(s). : "");
+    render();
+  }
+// =========================================================================
+// 3. RENDERIZAÇÃO E EVENTOS
+// =========================================================================
+const shapeSVG = (x, y, player, extra = "") => player === 1
+? <circle cx="${x}" cy="${y}" r="0.36" class="p1 ${extra}" />
+: <polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" class="p2 ${extra}" />;
+function render() {
+let html = "";
+for (let y = 1; y < state.rows; y++) {
+for (let x = 1; x < state.cols; x++) {
+if (state.board[y][x]) html += shapeSVG(x, y, state.board[y][x]);
+}
+}
+if (state.lastMove) {
+html += <circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />;
+}
+dom.pecas.innerHTML = html;
+dom.c1.textContent = state.caps[1];
+dom.c2.textContent = state.caps[2];
+dom.turno.textContent = state.turn === 1
+? "● Vez: Círculo (Jogador 1)"
+: "▲ Vez: Triângulo (Jogador 2)";
 }
 function getVertex(e) {
-const pt = svg.createSVGPoint();
-pt.x = e.clientX; pt.y = e.clientY;
-const p = pt.matrixTransform(svg.getScreenCTM().inverse());
-return { vx: Math.round(p.x / CELL), vy: Math.round(p.y / CELL) };
+const pt = dom.svg.createSVGPoint();
+pt.x = e.clientX;
+pt.y = e.clientY;
+const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
+return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
 }
-svg.addEventListener('mousemove', e => {
+dom.svg.addEventListener('mousemove', e => {
+if (!state.mapa) return;
 const { vx, vy } = getVertex(e);
-const valid = mapaData && vx >= 1 && vx < COLS && vy >= 1 && vy < ROWS && board[vy][vx] === 0 && (!landOnly || isLand(vx, vy));
-elGhost.innerHTML = valid ? shapeSVG(vx, vy, turn, "ghost") : "";
+const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
+const valid = inBounds && state.board[vy][vx] === 0 && (!state.landOnly || isLand(vx, vy));
+dom.ghost.innerHTML = valid ? shapeSVG(vx, vy, state.turn, "ghost") : "";
+if (inBounds) {
+setAviso(Vértice (${vx}, ${vy}) — ${getBiomaNoVertice(vx, vy)});
+}
 });
-svg.addEventListener('mouseleave', () => elGhost.innerHTML = "");
-svg.addEventListener('click', e => { const { vx, vy } = getVertex(e); play(vx, vy); });
-document.getElementById('btn-modo').onclick = e => {
-landOnly = !landOnly;
-e.target.textContent = landOnly ? "Só Continente" : "Mapa Completo";
-e.target.classList.toggle('ativo', landOnly);
+dom.svg.addEventListener('mouseleave', () => {
+dom.ghost.innerHTML = "";
+});
+dom.svg.addEventListener('click', e => {
+const { vx, vy } = getVertex(e);
+play(vx, vy);
+});
+dom.btnModo.onclick = () => {
+state.landOnly = !state.landOnly;
+dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
+dom.btnModo.classList.toggle('ativo', state.landOnly);
 };
-document.getElementById('btn-pass').onclick = () => { turn = turn === 1 ? 2 : 1; render(); };
-document.getElementById('btn-reset').onclick = () => {
-board = Array.from({ length: ROWS + 1 }, () => Array(COLS + 1).fill(0));
-caps = { 1: 0, 2: 0 }; turn = 1; lastMove = null; render();
+dom.btnPass.onclick = () => {
+state.turn = state.turn === 1 ? 2 : 1;
+setAviso("Turno passado.");
+render();
 };
-const aviso = txt => elAviso.textContent = txt;
+dom.btnReset.onclick = () => {
+initBoard();
+setAviso("Partida reiniciada.");
+render();
+};
 carregarMapa();
