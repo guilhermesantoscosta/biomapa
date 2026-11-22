@@ -1,5 +1,5 @@
 // =========================================================================
-// CONFIGURAÇÃO DO REPOSITÓRIO PÚBLICO GITHUB
+// CONFIGURAÇÃO DO REPOSITÓRIO PÚBLICO GITHUB E TABULEIRO
 // =========================================================================
 const GITHUB_JSON_URL = "https://githubusercontent.com";
 const LOCAL_JSON_URL  = "./mapa-dados.json";
@@ -10,11 +10,9 @@ const dom = {
   ghost: document.getElementById('ghost'),
   rios: document.getElementById('camada-rios'),
   aviso: document.getElementById('aviso'),
-  turno: document.getElementById('turno'),
-  c1: document.getElementById('c1'),
-  c2: document.getElementById('c2'),
   btnModo: document.getElementById('btn-modo'),
   btnPass: document.getElementById('btn-pass'),
+  btnPlacar: document.getElementById('btn-placar'),
   btnReset: document.getElementById('btn-reset')
 };
 
@@ -58,7 +56,7 @@ async function carregarMapa() {
 
     initBoard();
     desenharRios(state.mapa.rios);
-    setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
+    setAviso("Configure os jogadores para começar!");
     render();
   } catch (err) {
     setAviso("Erro ao carregar mapa-dados.json. Verifique se o repositório está público.");
@@ -159,8 +157,11 @@ function play(vx, vy) {
   state.board = nextBoard;
   state.caps[state.turn] += captured;
   state.lastMove = { x: vx, y: vy };
-  state.turn = opp;
-  setAviso(captured ? `Captura! +${captured} peça(s).` : "");
+
+  // Avança para o próximo jogador alternando entre Círculo e Triângulo
+  state.turn = avancarTurnoAlternado();
+
+  setAviso(captured ? `Captura! +${captured} ponto(s) para a equipe.` : "");
   render();
 }
 
@@ -169,7 +170,7 @@ function play(vx, vy) {
 // =========================================================================
 const shapeSVG = (x, y, player, extra = "") => player === 1
   ? `<circle cx="${x}" cy="${y}" r="0.36" class="p1 ${extra}" />`
-  : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" class="p2 ${extra}" />`;
+  : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" class="p2 ${extra}" />;
 
 function render() {
   let html = "";
@@ -182,11 +183,9 @@ function render() {
     html += `<circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />`;
   }
   dom.pecas.innerHTML = html;
-  dom.c1.textContent = state.caps[1];
-  dom.c2.textContent = state.caps[2];
-  dom.turno.textContent = state.turn === 1
-    ? "● Vez: Círculo (Jogador 1)"
-    : "▲ Vez: Triângulo (Jogador 2)";
+
+  // Atualiza o placar e a carta de objetivo do jogador da vez
+  atualizarPontuacaoEInterface(state.board, state.mapa, state.caps);
 }
 
 function getVertex(e) {
@@ -204,7 +203,7 @@ dom.svg.addEventListener('mousemove', e => {
   const valid = inBounds && state.board[vy][vx] === 0 && (!state.landOnly || isLand(vx, vy));
   dom.ghost.innerHTML = valid ? shapeSVG(vx, vy, state.turn, "ghost") : "";
   if (inBounds) {
-    setAviso(`Vértice (${vx}, ${vy}) — ${getBiomaNoVertice(vx, vy)}`);
+    setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
   }
 });
 
@@ -224,15 +223,17 @@ dom.btnModo.onclick = () => {
 };
 
 dom.btnPass.onclick = () => {
-  state.turn = state.turn === 1 ? 2 : 1;
-  setAviso("Turno passado.");
+  state.turn = avancarTurnoAlternado();
+  setAviso("Turno passado para o próximo jogador.");
   render();
 };
 
+dom.btnPlacar.onclick = () => {
+  exibirPlacarGeral(state.caps);
+};
+
 dom.btnReset.onclick = () => {
-  initBoard();
-  setAviso("Partida reiniciada.");
-  render();
+  document.getElementById('modal-setup').classList.remove('hidden');
 };
 
 carregarMapa();
