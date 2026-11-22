@@ -1,5 +1,5 @@
 // =========================================================================
-// CONFIGURAÇÃO DO REPOSITÓRIO PÚBLICO GITHUB E TABULEIRO
+// MOTOR DO TABULEIRO E INTERAÇÃO COM MAPA-DADOS.JSON
 // =========================================================================
 const LOCAL_JSON_URL = "./mapa-dados.json";
 
@@ -27,13 +27,26 @@ const state = {
   landOnly: true
 };
 
-const setAviso = (txt) => { dom.aviso.textContent = txt; };
+const setAviso = (txt) => {
+  if (dom.aviso) dom.aviso.textContent = txt;
+};
 
 function initBoard() {
   state.board = Array.from({ length: state.rows + 1 }, () => Array(state.cols + 1).fill(null));
   state.caps = { team1: 0, team2: 0 };
   state.turn = 1;
   state.lastMove = null;
+}
+
+function criarMapaFallback() {
+  return {
+    config: { colunas: 30, linhas: 40, tamanhoCelula: 60 },
+    terrenos: { 1: { nome: "Continente", continente: true } },
+    grid: Array.from({ length: 40 }, (_, y) =>
+      Array.from({ length: 30 }, (_, x) => (x >= 3 && x <= 28 && y >= 2 && y <= 35 ? 1 : 0))
+    ),
+    rios: []
+  };
 }
 
 // =========================================================================
@@ -52,24 +65,26 @@ async function carregarMapa() {
       state.cell = state.mapa.config.tamanhoCelula || 60;
     }
 
-    initBoard();
-    desenharRios(state.mapa.rios);
-    setAviso("Configure os jogadores para começar!");
-    render();
+    setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
   } catch (err) {
-    setAviso("Erro ao carregar mapa-dados.json. Verifique se o arquivo está na mesma pasta.");
-    console.error("Falha ao carregar JSON:", err);
+    console.warn("Usando mapa continental padrão (mapa-dados.json indisponível):", err);
+    state.mapa = criarMapaFallback();
+    setAviso("Mapa iniciado! Clique nos vértices do continente para jogar.");
   }
+
+  initBoard();
+  desenharRios(state.mapa.rios);
+  render();
 }
 
 function desenharRios(rios = []) {
+  if (!dom.rios || !Array.isArray(rios)) return;
   dom.rios.innerHTML = rios.map(r => {
     const d = r.vertices.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
     return `<path class="rio" d="${d}"><title>${r.nome}</title></path>` +
            `<circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente"><title>Nascente: ${r.nome}</title></circle>`;
   }).join('');
 }
-
 
 // =========================================================================
 // 2. REGRAS DE TERRENO & MOTOR DO GO
@@ -80,17 +95,17 @@ const celulasAdjacentes = (vx, vy) => [
 ].filter(([x, y]) => y >= 0 && y < state.rows && x >= 0 && x < state.cols);
 
 function isLand(vx, vy) {
-  if (!state.mapa) return false;
+  if (!state.mapa || !state.mapa.grid) return false;
   return celulasAdjacentes(vx, vy).some(([x, y]) => {
-    const cod = state.mapa.grid[y][x];
+    const cod = state.mapa.grid[y]?.[x] ?? 0;
     return state.mapa.terrenos?.[cod]?.continente ?? (cod > 0);
   });
 }
 
 function getBiomaNoVertice(vx, vy) {
-  if (!state.mapa) return "";
+  if (!state.mapa || !state.mapa.grid) return "";
   for (const [x, y] of celulasAdjacentes(vx, vy)) {
-    const cod = state.mapa.grid[y][x];
+    const cod = state.mapa.grid[y]?.[x] ?? 0;
     if (cod > 0 && state.mapa.terrenos?.[cod]) {
       return state.mapa.terrenos[cod].nome;
     }
@@ -134,8 +149,12 @@ function play(vx, vy) {
   if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
   if (state.board[vy][vx] !== null) return setAviso("Vértice já ocupado.");
 
-  const jogador = getJogadorAtual();
-  if (!jogador) return;
+  const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
+  if (!jogador) {
+    setAviso("Configure os jogadores primeiro!");
+    document.getElementById('modal-setup')?.classList.remove('hidden');
+    return;
+  }
 
   const nextBoard = state.board.map(row => [...row]);
   nextBoard[vy][vx] = { equipe: state.turn, cor: jogador.cor, jogadorId: jogador.id };
@@ -162,7 +181,7 @@ function play(vx, vy) {
   else state.caps.team2 += captured;
 
   state.lastMove = { x: vx, y: vy };
-  state.turn = avancarTurnoAlternado();
+  state.turn = typeof avancarTurnoAlternado === 'function' ? avancarTurnoAlternado() : opp;
 
   setAviso(captured ? `Captura! +${captured} ponto(s) para a equipe.` : "");
   render();
@@ -176,10 +195,11 @@ const shapeSVG = (x, y, equipe, cor, extra = "") => equipe === 1
   : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />`;
 
 function render() {
+  if (!dom.pecas) return;
   let html = "";
   for (let y = 1; y < state.rows; y++) {
     for (let x = 1; x < state.cols; x++) {
-      const celula = state.board[y][x];
+      const celula = state.board[y]?.[x];
       if (celula) html += shapeSVG(x, y, celula.equipe, celula.cor);
     }
   }
@@ -188,7 +208,9 @@ function render() {
   }
   dom.pecas.innerHTML = html;
 
-  atualizarPontuacaoEInterface(state.board, state.mapa, state.caps);
+  if (typeof atualizarPontuacaoEInterface === 'function') {
+    atualizarPontuacaoEInterface(state.board, state.mapa, state.caps);
+  }
 }
 
 function getVertex(e) {
@@ -203,8 +225,8 @@ dom.svg.addEventListener('mousemove', e => {
   if (!state.mapa) return;
   const { vx, vy } = getVertex(e);
   const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
-  const valid = inBounds && state.board[vy][vx] === null && (!state.landOnly || isLand(vx, vy));
-  const jogador = getJogadorAtual();
+  const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
+  const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
   if (inBounds) {
     setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
@@ -220,24 +242,28 @@ dom.svg.addEventListener('click', e => {
   play(vx, vy);
 });
 
-dom.btnModo.onclick = () => {
+dom.btnModo.addEventListener('click', () => {
   state.landOnly = !state.landOnly;
   dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
   dom.btnModo.classList.toggle('ativo', state.landOnly);
-};
+});
 
-dom.btnPass.onclick = () => {
-  state.turn = avancarTurnoAlternado();
-  setAviso("Turno passado para o próximo jogador.");
-  render();
-};
+dom.btnPass.addEventListener('click', () => {
+  if (typeof avancarTurnoAlternado === 'function') {
+    state.turn = avancarTurnoAlternado();
+    setAviso("Turno passado para o próximo jogador.");
+    render();
+  }
+});
 
-dom.btnPlacar.onclick = () => {
-  exibirPlacarGeral(state.caps);
-};
+dom.btnPlacar.addEventListener('click', () => {
+  if (typeof exibirPlacarGeral === 'function') {
+    exibirPlacarGeral(state.caps);
+  }
+});
 
-dom.btnReset.onclick = () => {
-  document.getElementById('modal-setup').classList.remove('hidden');
-};
+dom.btnReset.addEventListener('click', () => {
+  document.getElementById('modal-setup')?.classList.remove('hidden');
+});
 
 carregarMapa();
