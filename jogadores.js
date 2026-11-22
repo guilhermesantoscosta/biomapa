@@ -1,14 +1,16 @@
+### 2. Arquivo `jogadores.js`
+```javascript
 const PERFIS_FIXOS = [
-  { nomePadrao: "Jogador 1",  cor: "#fca5a5", equipe: 1 }, // 1. Rosa Salmão Pastel (Defensor - Quente)
-  { nomePadrao: "Jogador 2",  cor: "#93c5fd", equipe: 2 }, // 2. Azul Céu Pastel (Expansão - Frio)
-  { nomePadrao: "Jogador 3",  cor: "#fdba74", equipe: 1 }, // 3. Pêssego Suave (Defensor - Quente)
-  { nomePadrao: "Jogador 4",  cor: "#a5f3fc", equipe: 2 }, // 4. Azul Gelo Pastel (Expansão - Frio)
-  { nomePadrao: "Jogador 5",  cor: "#fde047", equipe: 1 }, // 5. Amarelo Manteiga (Defensor - Quente)
-  { nomePadrao: "Jogador 6",  cor: "#c4b5fd", equipe: 2 }, // 6. Lavanda Suave (Expansão - Frio)
-  { nomePadrao: "Jogador 7",  cor: "#fda4af", equipe: 1 }, // 7. Coral Pastel (Defensor - Quente)
-  { nomePadrao: "Jogador 8",  cor: "#99f6e4", equipe: 2 }, // 8. Verde Água Pastel (Expansão - Frio)
-  { nomePadrao: "Jogador 9",  cor: "#fed7aa", equipe: 1 }, // 9. Damasco Claro (Defensor - Quente)
-  { nomePadrao: "Jogador 10", cor: "#a5b4fc", equipe: 2 }  // 10. Azul Pervinca Pastel (Expansão - Frio)
+  { nomePadrao: "Jogador 1",  cor: "#fca5a5", equipe: 1 },
+  { nomePadrao: "Jogador 2",  cor: "#93c5fd", equipe: 2 },
+  { nomePadrao: "Jogador 3",  cor: "#fdba74", equipe: 1 },
+  { nomePadrao: "Jogador 4",  cor: "#a5f3fc", equipe: 2 },
+  { nomePadrao: "Jogador 5",  cor: "#fde047", equipe: 1 },
+  { nomePadrao: "Jogador 6",  cor: "#c4b5fd", equipe: 2 },
+  { nomePadrao: "Jogador 7",  cor: "#fda4af", equipe: 1 },
+  { nomePadrao: "Jogador 8",  cor: "#99f6e4", equipe: 2 },
+  { nomePadrao: "Jogador 9",  cor: "#fed7aa", equipe: 1 },
+  { nomePadrao: "Jogador 10", cor: "#a5b4fc", equipe: 2 }
 ];
 
 const MAX_JOGADORES = 10;
@@ -20,6 +22,10 @@ const gameSession = {
   idx2: 0,
   equipeAtiva: 1
 };
+
+function getTotalJogadores() {
+  return gameSession.equipe1.length + gameSession.equipe2.length;
+}
 
 function configurarLobby() {
   const lista = document.getElementById('lista-jogadores');
@@ -121,8 +127,10 @@ function avancarTurnoAlternado() {
 }
 
 function atualizarPontuacaoEInterface(caps) {
-  document.getElementById('c1').textContent = caps?.team1 || 0;
-  document.getElementById('c2').textContent = caps?.team2 || 0;
+  const t1 = caps ? caps.team1 : 0;
+  const t2 = caps ? caps.team2 : 0;
+  document.getElementById('c1').textContent = t1;
+  document.getElementById('c2').textContent = t2;
 
   const atual = getJogadorAtual();
   if (atual) {
