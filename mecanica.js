@@ -20,7 +20,7 @@ const state = {
   rows: 40,
   cell: 60,
   mapa: null,
-  board: [], // Armazena null ou { equipe: 1|2, cor: '#hex', jogadorId: number }
+  board: [],
   turn: 1,
   caps: { team1: 0, team2: 0 },
   lastMove: null,
