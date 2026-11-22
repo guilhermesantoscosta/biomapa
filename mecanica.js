@@ -1,7 +1,3 @@
-### 3. Arquivo `mecanica.js` (Com orquestrador de carregamento)
-Adicionei no final deste arquivo a função `iniciarSistema()`, que aguarda o mapa e o `jogadores.js` estarem 100% carregados antes de fechar a tela de carregamento e liberar o menu interativo:
-
-```javascript
 const LOCAL_JSON_URL = "./mapa-dados.json";
 
 const dom = {
@@ -12,7 +8,6 @@ const dom = {
   aviso: document.getElementById('aviso'),
   btnModo: document.getElementById('btn-modo'),
   btnPass: document.getElementById('btn-pass'),
-  btnPlacar: document.getElementById('btn-placar'),
   btnReset: document.getElementById('btn-reset')
 };
 
@@ -51,12 +46,9 @@ function criarMapaFallback() {
 }
 
 async function carregarMapa() {
-  const statusEl = document.getElementById('loader-status');
   try {
-    if (statusEl) statusEl.textContent = "Carregando dados geográficos (mapa-dados.json)...";
     const res = await fetch(LOCAL_JSON_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     state.mapa = await res.json();
 
     if (state.mapa.config) {
@@ -65,10 +57,9 @@ async function carregarMapa() {
       state.cell = state.mapa.config.tamanhoCelula || 60;
     }
     setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
-  } catch (err) {
-    console.warn("Usando mapa continental padrão:", err);
+  } catch {
     state.mapa = criarMapaFallback();
-    setAviso("Mapa padrão iniciado! Clique nos vértices do continente para jogar.");
+    setAviso("Mapa iniciado! Clique nos vértices do continente para jogar.");
   }
 
   initBoard();
@@ -91,7 +82,7 @@ const celulasAdjacentes = (vx, vy) => [
 ].filter(([x, y]) => y >= 0 && y < state.rows && x >= 0 && x < state.cols);
 
 function isLand(vx, vy) {
-  if (!state.mapa || !state.mapa.grid) return false;
+  if (!state.mapa?.grid) return false;
   return celulasAdjacentes(vx, vy).some(([x, y]) => {
     const cod = state.mapa.grid[y]?.[x] ?? 0;
     return state.mapa.terrenos?.[cod]?.continente ?? (cod > 0);
@@ -99,21 +90,17 @@ function isLand(vx, vy) {
 }
 
 function getBiomaNoVertice(vx, vy) {
-  if (!state.mapa || !state.mapa.grid) return "";
+  if (!state.mapa?.grid) return "";
   for (const [x, y] of celulasAdjacentes(vx, vy)) {
     const cod = state.mapa.grid[y]?.[x] ?? 0;
-    if (cod > 0 && state.mapa.terrenos?.[cod]) {
-      return state.mapa.terrenos[cod].nome;
-    }
+    if (cod > 0 && state.mapa.terrenos?.[cod]) return state.mapa.terrenos[cod].nome;
   }
   return "Oceano";
 }
 
 function neighbors(vx, vy) {
   return [[vx, vy - 1], [vx, vy + 1], [vx - 1, vy], [vx + 1, vy]].filter(([x, y]) =>
-    x >= 1 && x < state.cols &&
-    y >= 1 && y < state.rows &&
-    (!state.landOnly || isLand(x, y))
+    x >= 1 && x < state.cols && y >= 1 && y < state.rows && (!state.landOnly || isLand(x, y))
   );
 }
 
@@ -147,13 +134,12 @@ function play(vx, vy) {
 
   const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   if (!jogador) {
-    setAviso("Configure os jogadores primeiro!");
     document.getElementById('modal-setup')?.classList.remove('hidden');
     return;
   }
 
   const nextBoard = state.board.map(row => [...row]);
-  nextBoard[vy][vx] = { equipe: state.turn, cor: jogador.cor, jogadorId: jogador.id };
+  nextBoard[vy][vx] = { equipe: state.turn, cor: jogador.cor };
 
   const opp = state.turn === 1 ? 2 : 1;
   let captured = 0;
@@ -202,7 +188,7 @@ function render() {
   dom.pecas.innerHTML = html;
 
   if (typeof atualizarPontuacaoEInterface === 'function') {
-    atualizarPontuacaoEInterface(state.board, state.mapa, state.caps);
+    atualizarPontuacaoEInterface(state.caps);
   }
 }
 
@@ -221,9 +207,7 @@ dom.svg.addEventListener('mousemove', e => {
   const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
   const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
-  if (inBounds) {
-    setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
-  }
+  if (inBounds) setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
 });
 
 dom.svg.addEventListener('mouseleave', () => {
@@ -244,14 +228,8 @@ dom.btnModo.addEventListener('click', () => {
 dom.btnPass.addEventListener('click', () => {
   if (typeof avancarTurnoAlternado === 'function') {
     state.turn = avancarTurnoAlternado();
-    setAviso("Turno passado para o próximo jogador.");
+    setAviso("Turno passado.");
     render();
-  }
-});
-
-dom.btnPlacar.addEventListener('click', () => {
-  if (typeof exibirPlacarGeral === 'function') {
-    exibirPlacarGeral(state.caps);
   }
 });
 
@@ -259,42 +237,4 @@ dom.btnReset.addEventListener('click', () => {
   document.getElementById('modal-setup')?.classList.remove('hidden');
 });
 
-// =========================================================================
-// ORQUESTRADOR DE INICIALIZAÇÃO (GARANTE QUE TUDO CARREGUE ANTES DO MENU)
-// =========================================================================
-async function iniciarSistema() {
-  const statusEl = document.getElementById('loader-status');
-  const modalLoading = document.getElementById('modal-loading');
-  const modalSetup = document.getElementById('modal-setup');
-
-  try {
-    if (typeof configurarLobby !== 'function') {
-      throw new Error("Arquivo jogadores.js não foi carregado.");
-    }
-
-    if (statusEl) statusEl.textContent = "Configurando menu de jogadores...";
-    configurarLobby();
-
-    await carregarMapa();
-
-    if (statusEl) statusEl.textContent = "Tudo pronto!";
-    setTimeout(() => {
-      modalLoading?.classList.add('hidden');
-      modalSetup?.classList.remove('hidden');
-    }, 300);
-
-  } catch (erro) {
-    if (statusEl) {
-      statusEl.style.color = "#ef4444";
-      statusEl.textContent = `Erro ao iniciar: ${erro.message}. Verifique se todos os arquivos estão na mesma pasta.`;
-    }
-    console.error(erro);
-  }
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', iniciarSistema);
-} else {
-  iniciarSistema();
-}
-
+carregarMapa();
