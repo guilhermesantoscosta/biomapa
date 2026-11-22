@@ -319,7 +319,6 @@
         <path class="cerrado" d="M22,8h1v1h-1z M21,9h2v1h-2z M19,10h4v1h-4z M18,11h5v1h-5z M11,11h3v1h-3z M16,12h7v2h-7z M16,14h6v1h-6z M16,15h4v3h-4z" />
         <path class="pant"    d="M14,11h2v1h-2z M8,12h8v1H8z M7,13h9v1H7z M10,14h6v2h-6z M10,16h6v2h-6z" />
         <path class="mata"    d="M27,7h1v1h-1z M28,8h1v1h-1z M27,9h1v2h-1z M26,11h1v1h-1z M23,12h4v2h-4z M22,14h4v1h-4z M20,15h5v1h-5z M18,16h6v1h-6z M18,17h5v1h-5z M19,18h3v1h-3z" />
-Use o código com cuidado.
 const CORES_PADRAO = [
 "#111827", "#f8fafc", "#ef4444", "#3b82f6",
 "#10b981", "#f59e0b", "#8b5cf6", "#ec4899",
@@ -506,7 +505,6 @@ atualizarIndicesERegras();
 lista.appendChild(row);
 atualizarIndicesERegras();
 };
-// Cria imediatamente os 2 primeiros jogadores
 lista.innerHTML = "";
 adicionarLinhaJogador("Jogador 1", "#111827");
 adicionarLinhaJogador("Jogador 2", "#f8fafc");
@@ -588,5 +586,4 @@ Capturas: ● Defensores (${caps?.team1 || 0} pts) | ▲ Expansão (${caps?.team
 ];
 alert(linhas.join('\n'));
 }
-// Executa imediatamente
 configurarLobby();
