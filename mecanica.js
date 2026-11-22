@@ -87,7 +87,7 @@ function desenharContornoBrasil(pontos = []) {
   const camada = document.getElementById('camada-fronteira');
   if (!camada || !Array.isArray(pontos) || pontos.length === 0) return;
 
-  const coords = pontos.map(([x, y]) => `${x},${y}`).join(' ');
+  const coords = pontos.map(p => `${p.x},${p.y}`).join(' ');
   camada.innerHTML = `<polyline points="${coords}" class="fronteira-brasil" />`;
 }
 
