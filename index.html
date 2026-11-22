@@ -29,7 +29,6 @@
       min-height: 100vh;
     }
 
-    /* Modais */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -138,7 +137,6 @@
     }
     .btn-primary:hover { background: #15803d; }
 
-    /* Tabela de Fim de Jogo */
     .vencedor-banner {
       background: var(--bg-dark);
       border: 1px solid var(--accent-hover);
@@ -177,7 +175,6 @@
       color: #fff;
     }
 
-    /* Painel Superior (HUD) */
     .hud {
       width: 100%;
       max-width: 960px;
@@ -232,7 +229,6 @@
       min-height: 18px;
     }
 
-    /* Tabuleiro SVG */
     .board {
       width: 100%;
       max-width: 880px;
@@ -246,7 +242,6 @@
 
     svg { width: 100%; height: 100%; display: block; cursor: crosshair; }
 
-    /* Biomas */
     .mar     { fill: #38bdf8; }
     .andes   { fill: #64748b; }
     .atacama { fill: #d97706; }
@@ -261,7 +256,6 @@
     .pampa   { fill: #bef264; }
     .espinal { fill: #a3a380; }
 
-    /* Rios e Peças */
     .rio      { stroke: #0284c7; stroke-width: 0.09; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .nascente { fill: #0369a1; stroke: #fff; stroke-width: 0.04; }
     .peca     { stroke: #0f172a; stroke-width: 0.06; stroke-linejoin: round; }
@@ -271,7 +265,6 @@
 </head>
 <body>
 
-  <!-- MODAL DE CONFIGURAÇÃO (2 A 10 JOGADORES) -->
   <div class="modal-overlay" id="modal-setup">
     <div class="modal-box">
       <h2>🌎 Biomapa: Configurar Partida</h2>
@@ -286,7 +279,6 @@
     </div>
   </div>
 
-  <!-- MODAL DE FIM DE JOGO E PLACAR DETALHADO -->
   <div class="modal-overlay hidden" id="modal-fim">
     <div class="modal-box">
       <h2>🏆 Fim de Partida</h2>
@@ -311,7 +303,6 @@
     </div>
   </div>
 
-  <!-- PAINEL SUPERIOR (HUD) -->
   <header class="hud">
     <div class="hud-top">
       <div class="turno" id="turno">Aguardando início...</div>
@@ -328,7 +319,6 @@
     <div class="aviso" id="aviso"></div>
   </header>
 
-  <!-- TABULEIRO SVG -->
   <main class="board">
     <svg id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
       <defs>
@@ -345,3 +335,5 @@
         <path class="valdiv"  d="M7,20h1v13H7z" />
         <path class="patag"   d="M10,24h4v3h-1v3h-1v3h-1v2H10z M9,25h1v10H9z M9,35h4v1H9z" />
         <path class="llanos"  d="M8,2h5v1H8z M7,3h6v1H7z" />
+        <path class="amaz"    d="M3,3h1v1H3z M13,3h4v1h-4z M6,4h14v1H6z M6,5h15v1H6z M6,6h17v1H6z M7,7h16v1H7z M7,8h15v1H7z M8,9h13v1H8z M6,10h13v1H6z M7,11h11v1H7z" />
+        <path class="caat"    d="M23,6h2v1h-2z M23,7h4v1h-4z M23,8h5v1h-5z M23,9h4v2h-4z M23,11h3v1h-3z" />
