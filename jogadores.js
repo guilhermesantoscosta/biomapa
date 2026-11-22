@@ -14,10 +14,15 @@ const OBJETIVOS_AMBIENTAIS = [
 ];
 
 function ptsLista(board, coords = [], peso) {
-  const pts = { 1: 0, 2: 0 }, vistos = new Set();
+  const pts = { one: 0, two: 0 }, vistos = new Set();
+  if (!coords) return pts;
   for (const [x, y] of coords) {
     const k = `${x},${y}`, eq = board[y]?.[x]?.equipe;
-    if (!vistos.has(k) && eq) { vistos.add(k); pts[eq] += peso; }
+    if (!vistos.has(k) && eq) {
+      vistos.add(k);
+      if (eq === 1) pts.one += peso;
+      else pts.two += peso;
+    }
   }
   return pts;
 }
@@ -30,23 +35,29 @@ function iterarTabuleiro(board, mapa, fn) {
 }
 
 function ptsBioma(board, mapa, alvos, peso) {
-  const pts = { 1: 0, 2: 0 };
+  const pts = { one: 0, two: 0 };
   iterarTabuleiro(board, mapa, (eq, b) => {
-    if (alvos.some(a => b.toLowerCase().includes(a))) pts[eq] += peso;
+    if (alvos.some(a => b.toLowerCase().includes(a))) {
+      if (eq === 1) pts.one += peso;
+      else pts.two += peso;
+    }
   });
   return pts;
 }
 
 function ptsDiversidade(board, mapa, peso) {
-  const s = { 1: new Set(), 2: new Set() };
-  iterarTabuleiro(board, mapa, (eq, b) => { if (b && b !== "Oceano") s[eq].add(b); });
-  return { 1: s[1].size * peso, 2: s[2].size * peso };
+  const s1 = new Set(), s2 = new Set();
+  iterarTabuleiro(board, mapa, (eq, b) => {
+    if (b && b !== "Oceano") (eq === 1 ? s1 : s2).add(b);
+  });
+  return { one: s1.size * peso, two: s2.size * peso };
 }
 
 const session = { eq1: [], eq2: [], i1: 0, i2: 0, ativa: 1 };
 
 function configurarLobby() {
   const lista = document.getElementById('lista-jogadores'), btnAdd = document.getElementById('btn-add-jogador');
+  if (!lista || !btnAdd) return;
 
   const atualizarUI = () => {
     const rows = lista.querySelectorAll('.jogador-row');
@@ -88,7 +99,10 @@ function configurarLobby() {
   };
 }
 
-const getJogadorAtual = () => session.ativa === 1 ? session.eq1[session.i1 % session.eq1.length] : session.eq2[session.i2 % session.eq2.length];
+const getJogadorAtual = () => {
+  if (!session.eq1.length && !session.eq2.length) return null;
+  return session.ativa === 1 ? session.eq1[session.i1 % session.eq1.length] : session.eq2[session.i2 % session.eq2.length];
+};
 
 function avancarTurnoAlternado() {
   session.ativa === 1 ? session.i1++ : session.i2++;
@@ -96,9 +110,14 @@ function avancarTurnoAlternado() {
 }
 
 function atualizarPontuacaoEInterface(board, mapa, caps) {
-  const soma = (eq, cap) => eq.reduce((acc, j) => acc + (j.pts = j.obj.calc(board, mapa)[j.equipe]), cap);
-  document.getElementById('c1').textContent = soma(session.eq1, caps[1]);
-  document.getElementById('c2').textContent = soma(session.eq2, caps[2]);
+  const soma = (eq, capBase) => eq.reduce((acc, j) => {
+    const res = j.obj.calc(board, mapa);
+    j.pts = j.equipe === 1 ? res.one : res.two;
+    return acc + j.pts;
+  }, capBase);
+
+  document.getElementById('c1').textContent = soma(session.eq1, caps.one);
+  document.getElementById('c2').textContent = soma(session.eq2, caps.two);
 
   const j = getJogadorAtual();
   if (!j) return;
@@ -110,7 +129,8 @@ function atualizarPontuacaoEInterface(board, mapa, caps) {
 
 function exibirPlacarGeral(caps) {
   const fmt = (eq, ic) => eq.map(j => `${ic} ${j.nome}: ${j.pts} pts (${j.obj.titulo})`).join('\n');
-  alert(`=== PLACAR GERAL ===\nCapturas: ● Defensores (${caps[1]} pts) | ▲ Expansão (${caps[2]} pts)\n\n--- DEFENSORES ---\n${fmt(session.eq1, "●")}\n\n--- EXPANSÃO ---\n${fmt(session.eq2, "▲")}`);
+  alert(`=== PLACAR GERAL ===\nCapturas: ● Defensores (${caps.one} pts) | ▲ Expansão (${caps.two} pts)\n\n--- DEFENSORES ---\n${fmt(session.eq1, "●")}\n\n--- EXPANSÃO ---\n${fmt(session.eq2, "▲")}`);
 }
 
-window.addEventListener('DOMContentLoaded', configurarLobby);
+if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', configurarLobby);
+else configurarLobby();
