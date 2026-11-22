@@ -1,44 +1,52 @@
-const GITHUB_JSON_URL = "https://githubusercontent.com", LOCAL_JSON_URL = "./mapa-dados.json";
+const LOCAL_JSON_URL = "./mapa-dados.json";
 const $ = id => document.getElementById(id);
 const dom = { svg: $('svg'), pecas: $('pecas'), ghost: $('ghost'), rios: $('camada-rios'), aviso: $('aviso'), btnModo: $('btn-modo') };
-const state = { cols: 30, rows: 40, cell: 60, mapa: null, board: [], turn: 1, caps: { 1: 0, 2: 0 }, lastMove: null, landOnly: true };
+const state = { cols: 30, rows: 40, cell: 60, mapa: null, board: [], turn: 1, caps: { one: 0, two: 0 }, lastMove: null, landOnly: true };
 const setAviso = txt => dom.aviso.textContent = txt;
 
 function initBoard() {
   state.board = Array.from({ length: state.rows + 1 }, () => Array(state.cols + 1).fill(null));
-  state.caps = { 1: 0, 2: 0 };
+  state.caps = { one: 0, two: 0 };
   state.turn = 1;
   state.lastMove = null;
 }
 
+function criarMapaReserva() {
+  return {
+    config: { colunas: 30, linhas: 40, tamanhoCelula: 60 },
+    terrenos: { 1: { nome: "Continente", continente: true } },
+    grid: Array.from({ length: 40 }, (_, y) => Array.from({ length: 30 }, (_, x) => (x >= 3 && x <= 28 && y >= 2 && y <= 35 ? 1 : 0))),
+    rios: []
+  };
+}
+
 async function carregarMapa() {
   try {
-    let res = await fetch(LOCAL_JSON_URL).catch(() => null);
-    if (!res?.ok) res = await fetch(GITHUB_JSON_URL);
+    const res = await fetch(LOCAL_JSON_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     state.mapa = await res.json();
-
     const cfg = state.mapa.config;
     if (cfg) Object.assign(state, { cols: cfg.colunas || 30, rows: cfg.linhas || 40, cell: cfg.tamanhoCelula || 60 });
-
-    initBoard();
-    dom.rios.innerHTML = (state.mapa.rios || []).map(r =>
-      `<path class="rio" d="${r.vertices.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join(' ')}"><title>${r.nome}</title></path>` +
-      `<circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente"><title>Nascente: ${r.nome}</title></circle>`
-    ).join('');
     setAviso("Configure os jogadores para começar!");
-    render();
   } catch (err) {
-    setAviso("Erro ao carregar mapa-dados.json.");
-    console.error(err);
+    console.warn("Usando mapa reserva (mapa-dados.json não encontrado):", err);
+    state.mapa = criarMapaReserva();
+    setAviso("Mapa carregado em modo offline. Configure os jogadores!");
   }
+
+  initBoard();
+  dom.rios.innerHTML = (state.mapa.rios || []).map(r =>
+    `<path class="rio" d="${r.vertices.map(([x, y], i) => `${i ? 'L' : 'M'}${x},${y}`).join(' ')}"><title>${r.nome}</title></path>` +
+    `<circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente"><title>Nascente: ${r.nome}</title></circle>`
+  ).join('');
+  render();
 }
 
 const celulasAdj = (vx, vy) => [[vx - 1, vy - 1], [vx, vy - 1], [vx - 1, vy], [vx, vy]].filter(([x, y]) => y >= 0 && y < state.rows && x >= 0 && x < state.cols);
 
 function isLand(vx, vy) {
   return !!state.mapa && celulasAdj(vx, vy).some(([x, y]) => {
-    const c = state.mapa.grid[y][x];
+    const c = state.mapa.grid?.[y]?.[x] ?? 0;
     return state.mapa.terrenos?.[c]?.continente ?? c > 0;
   });
 }
@@ -46,7 +54,7 @@ function isLand(vx, vy) {
 function getBiomaNoVertice(vx, vy) {
   if (!state.mapa) return "";
   for (const [x, y] of celulasAdj(vx, vy)) {
-    const c = state.mapa.grid[y][x];
+    const c = state.mapa.grid?.[y]?.[x] ?? 0;
     if (c > 0 && state.mapa.terrenos?.[c]) return state.mapa.terrenos[c].nome;
   }
   return "Oceano";
@@ -87,8 +95,10 @@ function play(vx, vy) {
   }
   if (!getGroup(vx, vy, next).libs) return setAviso("Jogada inválida (Suicídio): grupo sem liberdades.");
 
+  if (j.equipe === 1) state.caps.one += cap;
+  else state.caps.two += cap;
+
   Object.assign(state, { board: next, lastMove: { x: vx, y: vy }, turn: avancarTurnoAlternado() });
-  state.caps[j.equipe] += cap;
   setAviso(cap ? `Captura! +${cap} ponto(s) para a equipe.` : "");
   render();
 }
