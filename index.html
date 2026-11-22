@@ -49,6 +49,8 @@
       padding: 24px;
       max-width: 480px;
       width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
     }
     .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); font-size: 22px; }
@@ -230,16 +232,16 @@
 </head>
 <body>
 
-  <!-- MODAL DE CONFIGURAÇÃO (2 A 4 JOGADORES) -->
+  <!-- MODAL DE CONFIGURAÇÃO (2 A 10 JOGADORES) -->
   <div class="modal-overlay" id="modal-setup">
     <div class="modal-box">
       <h2>🌎 Biomapa: Configurar Partida</h2>
-      <p>Escolha de <strong>2 a 4 jogadores</strong>. As cores já estão definidas por turno: <strong>● Defensores</strong> contra <strong>▲ Expansão</strong>.</p>
+      <p>Escolha de <strong>2 a 10 jogadores</strong>. As cores já estão definidas por turno: <strong>● Defensores</strong> contra <strong>▲ Expansão</strong>.</p>
       
       <div class="lista-jogadores" id="lista-jogadores"></div>
 
       <div class="setup-actions">
-        <button type="button" class="btn-add" id="btn-add-jogador">+ Jogador (2/4)</button>
+        <button type="button" class="btn-add" id="btn-add-jogador">+ Jogador (2/10)</button>
         <button type="button" class="btn-primary" id="btn-iniciar">Iniciar Partida</button>
       </div>
     </div>
