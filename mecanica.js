@@ -1,6 +1,7 @@
-// =========================================================================
-// MOTOR DO TABULEIRO E INTERAÇÃO COM MAPA-DADOS.JSON
-// =========================================================================
+### 3. Arquivo `mecanica.js` (Com orquestrador de carregamento)
+Adicionei no final deste arquivo a função `iniciarSistema()`, que aguarda o mapa e o `jogadores.js` estarem 100% carregados antes de fechar a tela de carregamento e liberar o menu interativo:
+
+```javascript
 const LOCAL_JSON_URL = "./mapa-dados.json";
 
 const dom = {
@@ -49,11 +50,10 @@ function criarMapaFallback() {
   };
 }
 
-// =========================================================================
-// 1. IMPORTAÇÃO DO JSON DO REPOSITÓRIO
-// =========================================================================
 async function carregarMapa() {
+  const statusEl = document.getElementById('loader-status');
   try {
+    if (statusEl) statusEl.textContent = "Carregando dados geográficos (mapa-dados.json)...";
     const res = await fetch(LOCAL_JSON_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -64,12 +64,11 @@ async function carregarMapa() {
       state.rows = state.mapa.config.linhas || 40;
       state.cell = state.mapa.config.tamanhoCelula || 60;
     }
-
     setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
   } catch (err) {
-    console.warn("Usando mapa continental padrão (mapa-dados.json indisponível):", err);
+    console.warn("Usando mapa continental padrão:", err);
     state.mapa = criarMapaFallback();
-    setAviso("Mapa iniciado! Clique nos vértices do continente para jogar.");
+    setAviso("Mapa padrão iniciado! Clique nos vértices do continente para jogar.");
   }
 
   initBoard();
@@ -86,9 +85,6 @@ function desenharRios(rios = []) {
   }).join('');
 }
 
-// =========================================================================
-// 2. REGRAS DE TERRENO & MOTOR DO GO
-// =========================================================================
 const celulasAdjacentes = (vx, vy) => [
   [vx - 1, vy - 1], [vx, vy - 1],
   [vx - 1, vy],     [vx, vy]
@@ -187,9 +183,6 @@ function play(vx, vy) {
   render();
 }
 
-// =========================================================================
-// 3. RENDERIZAÇÃO E EVENTOS
-// =========================================================================
 const shapeSVG = (x, y, equipe, cor, extra = "") => equipe === 1
   ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`
   : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />`;
@@ -266,4 +259,37 @@ dom.btnReset.addEventListener('click', () => {
   document.getElementById('modal-setup')?.classList.remove('hidden');
 });
 
-carregarMapa();
+// =========================================================================
+// ORQUESTRADOR DE INICIALIZAÇÃO (GARANTE QUE TUDO CARREGUE ANTES DO MENU)
+// =========================================================================
+async function iniciarSistema() {
+  const statusEl = document.getElementById('loader-status');
+  const modalLoading = document.getElementById('modal-loading');
+  const modalSetup = document.getElementById('modal-setup');
+
+  try {
+    if (typeof configurarLobby !== 'function') {
+      throw new Error("Arquivo jogadores.js não foi carregado.");
+    }
+
+    if (statusEl) statusEl.textContent = "Configurando menu de jogadores...";
+    configurarLobby();
+
+    await carregarMapa();
+
+    if (statusEl) statusEl.textContent = "Tudo pronto!";
+    setTimeout(() => {
+      modalLoading?.classList.add('hidden');
+      modalSetup?.classList.remove('hidden');
+    }, 300);
+
+  } catch (erro) {
+    if (statusEl) {
+      statusEl.style.color = "#ef4444";
+      statusEl.textContent = `Erro ao iniciar: ${erro.message}. Verifique se todos os arquivos estão na mesma pasta.`;
+    }
+    console.error(erro);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', iniciarSistema);
