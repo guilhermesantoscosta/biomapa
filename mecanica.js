@@ -28,6 +28,47 @@ const bonusState = {
   biomasDominados: new Set()
 };
 
+// =========================================================================
+// SINTETIZADOR DE EFEITOS SONOROS (SEM ARQUIVOS EXTERNOS)
+// =========================================================================
+const sfx = {
+  ctx: null,
+  tocarNota(freq, tipo, duracao, atraso = 0, vol = 0.12) {
+    try {
+      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = tipo;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime + atraso);
+
+      gain.gain.setValueAtTime(vol, this.ctx.currentTime + atraso);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + atraso + duracao);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(this.ctx.currentTime + atraso);
+      osc.stop(this.ctx.currentTime + atraso + duracao);
+    } catch {}
+  },
+  peca() { this.tocarNota(320, 'triangle', 0.09, 0, 0.15); },
+  erro() { this.tocarNota(140, 'sawtooth', 0.14, 0, 0.08); },
+  agua() {
+    this.tocarNota(587.33, 'sine', 0.15, 0, 0.12);
+    this.tocarNota(880, 'sine', 0.22, 0.07, 0.12);
+  },
+  captura() {
+    this.tocarNota(440, 'triangle', 0.12, 0, 0.14);
+    this.tocarNota(330, 'triangle', 0.18, 0.08, 0.14);
+  },
+  dominio() {
+    this.tocarNota(523.25, 'triangle', 0.14, 0, 0.15);
+    this.tocarNota(659.25, 'triangle', 0.14, 0.09, 0.15);
+    this.tocarNota(783.99, 'triangle', 0.28, 0.18, 0.15);
+  }
+};
+
 const setAviso = (txt) => {
   if (dom.aviso) dom.aviso.textContent = txt;
 };
@@ -177,8 +218,14 @@ function getGroup(sx, sy, boardState) {
 
 function play(vx, vy) {
   if (!state.mapa || vx < 1 || vx >= state.cols || vy < 1 || vy >= state.rows) return;
-  if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
-  if (state.board[vy][vx] !== null) return setAviso("Vértice já ocupado.");
+  if (state.landOnly && !isLand(vx, vy)) {
+    sfx.erro();
+    return setAviso("Jogue apenas nos vértices do continente.");
+  }
+  if (state.board[vy][vx] !== null) {
+    sfx.erro();
+    return setAviso("Vértice já ocupado.");
+  }
 
   const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   if (!jogador) {
@@ -203,11 +250,12 @@ function play(vx, vy) {
   }
 
   if (getGroup(vx, vy, nextBoard).libs === 0) {
+    sfx.erro();
     return setAviso("Jogada inválida (Suicídio): grupo sem liberdades.");
   }
 
   state.board = nextBoard;
-  state.lastMove = { x: vx, y: vy };
+  state.lastMove = { x: vx, y: vy, cor: jogador.cor };
 
   const hidrico = verificarTipoHidrico(vx, vy);
   const bonusAgua = hidrico ? hidrico.pts : 0;
@@ -227,6 +275,12 @@ function play(vx, vy) {
     ganhouJogadaExtra = true;
   }
 
+  // Dispara o som correspondente à prioridade da jogada
+  if (ganhouJogadaExtra) sfx.dominio();
+  else if (captured > 0) sfx.captura();
+  else if (hidrico) sfx.agua();
+  else sfx.peca();
+
   const mensagens = [];
   if (captured) mensagens.push(`Captura! +${captured} pt(s)`);
   if (hidrico) mensagens.push(hidrico.label);
@@ -243,69 +297,67 @@ function play(vx, vy) {
 }
 
 const shapeSVG = (x, y, equipe, cor, extra = "") => equipe === 1
-  ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`
-  : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />`;
-
+  ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`: <polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />;
 function render() {
-  if (!dom.pecas) return;
-  let html = "";
-  for (let y = 1; y < state.rows; y++) {
-    for (let x = 1; x < state.cols; x++) {
-      const celula = state.board[y]?.[x];
-      if (celula) html += shapeSVG(x, y, celula.equipe, celula.cor);
-    }
-  }
-  if (state.lastMove) {
-    html += `<circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />`;
-  }
-  dom.pecas.innerHTML = html;
-
-  if (typeof atualizarPontuacaoEInterface === 'function') {
-    atualizarPontuacaoEInterface(state.caps);
-  }
+if (!dom.pecas) return;
+let html = "";
+for (let y = 1; y < state.rows; y++) {
+for (let x = 1; x < state.cols; x++) {
+const celula = state.board[y]?.[x];
+if (celula) {
+const isLast = state.lastMove && state.lastMove.x === x && state.lastMove.y === y;
+html += shapeSVG(x, y, celula.equipe, celula.cor, isLast ? "peca-nova" : "");
 }
-
+}
+}
+if (state.lastMove) {
+html += <circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.35" class="onda-efeito" style="stroke: ${state.lastMove.cor || '#fff'};" />;
+html += <circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />;
+}
+dom.pecas.innerHTML = html;
+if (typeof atualizarPontuacaoEInterface === 'function') {
+atualizarPontuacaoEInterface(state.caps);
+}
+}
 function getVertex(e) {
-  const pt = dom.svg.createSVGPoint();
-  pt.x = e.clientX;
-  pt.y = e.clientY;
-  const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
-  return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
+const pt = dom.svg.createSVGPoint();
+pt.x = e.clientX;
+pt.y = e.clientY;
+const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
+return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
 }
-
 dom.svg.addEventListener('mousemove', e => {
-  if (!state.mapa) return;
-  const { vx, vy } = getVertex(e);
-  const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
-  const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
-  const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
-  dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
-  if (inBounds) setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
+if (!state.mapa) return;
+const { vx, vy } = getVertex(e);
+const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
+const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
+const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
+dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
+if (inBounds) setAviso(Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)});
 });
-
 dom.svg.addEventListener('mouseleave', () => {
-  dom.ghost.innerHTML = "";
+dom.ghost.innerHTML = "";
 });
-
 dom.svg.addEventListener('click', e => {
-  const { vx, vy } = getVertex(e);
-  play(vx, vy);
+const { vx, vy } = getVertex(e);
+play(vx, vy);
 });
-
 dom.btnModo.addEventListener('click', () => {
-  state.landOnly = !state.landOnly;
-  dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
+state.landOnly = !state.landOnly;
+dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
 dom.btnModo.classList.toggle('ativo', state.landOnly);
 });
 dom.btnPass.addEventListener('click', () => {
-  if (typeof avancarTurnoAlternado === 'function') {
-      bonusState.jogadaExtraUsada = false;
-      state.turn = avancarTurnoAlternado();
-      setAviso("Turno passado.");
-      render();
-    }
+if (typeof avancarTurnoAlternado === 'function') {
+bonusState.jogadaExtraUsada = false;
+state.turn = avancarTurnoAlternado();
+sfx.peca();
+setAviso("Turno passado.");
+render();
+}
 });
 dom.btnReset.addEventListener('click', () => {
-  document.getElementById('modal-setup')?.classList.remove('hidden');
+document.getElementById('modal-setup')?.classList.remove('hidden');
 });
 carregarMapa();
+  
