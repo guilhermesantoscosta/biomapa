@@ -1,7 +1,3 @@
-### 2. Arquivo `pontuacao.js` (Novo módulo isolado)
-Salve este código exatamente como **`pontuacao.js`**. Ele centraliza todos os bônus ambientais, jogadas extras e a tabela final:
-
-```javascript
 const scoreState = {
   capturas1: 0,
   capturas2: 0,
@@ -26,7 +22,8 @@ function resetarPontuacao() {
   scoreState.biomasDominados.clear();
   scoreState.passesConsecutivos = 0;
   scoreState.jogoEncerrado = false;
-  document.getElementById('modal-fim')?.classList.add('hidden');
+  const modalFim = document.getElementById('modal-fim');
+  if (modalFim) modalFim.classList.add('hidden');
 }
 
 function avaliarBonusHidrico(vx, vy, mapa) {
@@ -61,8 +58,11 @@ function contarPecasEquipeNoBioma(board, rows, cols, biomaAlvo, equipe) {
   if (!biomaAlvo || biomaAlvo === "Oceano" || typeof getBiomaNoVertice !== 'function') return 0;
   let total = 0;
   for (let y = 1; y < rows; y++) {
+    const linha = board.at(y);
+    if (!linha) continue;
     for (let x = 1; x < cols; x++) {
-      if (board[y]?.[x]?.equipe === equipe && getBiomaNoVertice(x, y) === biomaAlvo) {
+      const cel = linha.at(x);
+      if (cel && cel.equipe === equipe && getBiomaNoVertice(x, y) === biomaAlvo) {
         total++;
       }
     }
@@ -70,41 +70,41 @@ function contarPecasEquipeNoBioma(board, rows, cols, biomaAlvo, equipe) {
   return total;
 }
 
-function processarJogadaPontuacao({ vx, vy, equipe, captured, board, mapa, rows, cols, jogadorNome }) {
+function processarJogadaPontuacao(dados) {
   scoreState.passesConsecutivos = 0;
 
-  const hidrico = avaliarBonusHidrico(vx, vy, mapa);
+  const hidrico = avaliarBonusHidrico(dados.vx, dados.vy, dados.mapa);
   const bonusAgua = hidrico ? hidrico.pts : 0;
-  const pontosJogada = captured + bonusAgua;
+  const pontosJogada = dados.captured + bonusAgua;
 
-  if (equipe === 1) {
-    scoreState.capturas1 += captured;
+  if (dados.equipe === 1) {
+    scoreState.capturas1 += dados.captured;
     scoreState.bonusAgua1 += bonusAgua;
   } else {
-    scoreState.capturas2 += captured;
+    scoreState.capturas2 += dados.captured;
     scoreState.bonusAgua2 += bonusAgua;
   }
 
-  const biomaAtual = typeof getBiomaNoVertice === 'function' ? getBiomaNoVertice(vx, vy) : "";
-  const qtdNoBioma = contarPecasEquipeNoBioma(board, rows, cols, biomaAtual, equipe);
-  const chaveMarco = `${equipe}-${biomaAtual}-${qtdNoBioma}`;
+  const biomaAtual = typeof getBiomaNoVertice === 'function' ? getBiomaNoVertice(dados.vx, dados.vy) : "";
+  const qtdNoBioma = contarPecasEquipeNoBioma(dados.board, dados.rows, dados.cols, biomaAtual, dados.equipe);
+  const chaveMarco = `${dados.equipe}-${biomaAtual}-${qtdNoBioma}`;
   let ganhouJogadaExtra = false;
 
   if (qtdNoBioma > 0 && qtdNoBioma % 5 === 0 && !scoreState.biomasDominados.has(chaveMarco) && !scoreState.jogadaExtraUsada) {
     scoreState.biomasDominados.add(chaveMarco);
     scoreState.jogadaExtraUsada = true;
     ganhouJogadaExtra = true;
-    if (equipe === 1) scoreState.dominios1++;
+    if (dados.equipe === 1) scoreState.dominios1++;
     else scoreState.dominios2++;
   } else {
     scoreState.jogadaExtraUsada = false;
   }
 
   const avisos = [];
-  if (captured) avisos.push(`Captura! +${captured} pt(s)`);
+  if (dados.captured) avisos.push(`Captura! +${dados.captured} pt(s)`);
   if (hidrico) avisos.push(hidrico.label);
   if (ganhouJogadaExtra) {
-    avisos.push(`🌿 DOMÍNIO DE BIOMA (${biomaAtual}: ${qtdNoBioma} peças) — JOGADA EXTRA para ${jogadorNome}!`);
+    avisos.push(`🌿 DOMÍNIO DE BIOMA (${biomaAtual}: ${qtdNoBioma} peças) — JOGADA EXTRA para ${dados.jogadorNome}!`);
   }
 
   return {
@@ -137,10 +137,12 @@ function finalizarPartidaETabela(board, rows, cols) {
   let pecas1 = 0;
   let pecas2 = 0;
   for (let y = 1; y < rows; y++) {
+    const linha = board.at(y);
+    if (!linha) continue;
     for (let x = 1; x < cols; x++) {
-      const cel = board[y]?.[x];
-      if (cel?.equipe === 1) pecas1++;
-      if (cel?.equipe === 2) pecas2++;
+      const cel = linha.at(x);
+      if (cel && cel.equipe === 1) pecas1++;
+      if (cel && cel.equipe === 2) pecas2++;
     }
   }
 
@@ -191,4 +193,6 @@ function finalizarPartidaETabela(board, rows, cols) {
     </tr>
   `;
 
-  document.getElementById('modal-fim')?.classList.remove('hidden');
+  const modalFim = document.getElementById('modal-fim');
+  if (modalFim) modalFim.classList.remove('hidden');
+}
