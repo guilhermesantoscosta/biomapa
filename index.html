@@ -228,6 +228,28 @@
     .peca     { stroke: #0f172a; stroke-width: 0.06; stroke-linejoin: round; }
     .ghost    { opacity: 0.5; pointer-events: none; }
     .last     { fill: #ef4444; stroke: #fff; stroke-width: 0.02; pointer-events: none; }
+        /* Animações das peças */
+    @keyframes popIn {
+      0% { transform: scale(0.2); opacity: 0.4; }
+      75% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes rippleOut {
+      0% { r: 0.35; opacity: 0.85; stroke-width: 0.08; }
+      100% { r: 1.15; opacity: 0; stroke-width: 0.01; }
+    }
+    .peca-nova {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: popIn 0.25s ease-out;
+    }
+    .onda-efeito {
+      fill: none;
+      stroke: #f8fafc;
+      pointer-events: none;
+      animation: rippleOut 0.55s ease-out forwards;
+    }
+
   </style>
 </head>
 <body>
