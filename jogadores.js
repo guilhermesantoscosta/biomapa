@@ -1,8 +1,4 @@
-### Arquivo 2: `jogadores.js`
-Copie e salve este código exatamente como **`jogadores.js`** (na mesma pasta do `index.html`):
-
 ```javascript
-// 8 cores de alto contraste para até 8 jogadores (sem confundir com os biomas do mapa)
 const CORES_JOGADORES = [
   "#111827", // 1. Preto Carvão
   "#f8fafc", // 2. Branco Neve
@@ -186,11 +182,15 @@ function configurarLobby() {
     const linhas = lista.querySelectorAll('.jogador-row');
     linhas.forEach((row, index) => {
       const isCirculo = index % 2 === 0;
-      row.querySelector('.badge-equipe').textContent = isCirculo ? '● Defensor' : '▲ Expansão';
+      const badge = row.querySelector('.badge-equipe');
+      badge.textContent = isCirculo ? '● Defensor' : '▲ Expansão';
+      badge.className = `badge-equipe ${isCirculo ? 'badge-defensor' : 'badge-expansao'}`;
+
       const btnRem = row.querySelector('.btn-remove');
       btnRem.style.display = linhas.length > 2 ? 'inline-block' : 'none';
     });
     btnAdd.disabled = linhas.length >= MAX_JOGADORES;
+    btnAdd.textContent = `+ Jogador (${linhas.length}/${MAX_JOGADORES})`;
   };
 
   const adicionarLinhaJogador = (nomePadrao = "", corPadrao = "") => {
@@ -239,9 +239,9 @@ function configurarLobby() {
 
     linhas.forEach((row, i) => {
       const nome = row.querySelector('.input-nome').value.trim() || `Jogador ${i + 1}`;
-      const cor = row.querySelector('.input-cor').value;
-      const objetivo = baralho[i];
-      const equipe = i % 2 === 0 ? 1 : 2;
+const cor = row.querySelector('.input-cor').value;
+const objetivo = baralho[i];
+const equipe = i % 2 === 0 ? 1 : 2;
 const jogador = { id: i + 1, nome, cor, equipe, objetivo, pontos: 0 };
 if (equipe === 1) gameSession.equipe1.push(jogador);
 else gameSession.equipe2.push(jogador);
@@ -305,4 +305,3 @@ Capturas: ● Defensores (${caps?.team1 || 0} pts) | ▲ Expansão (${caps?.team
 ];
 alert(linhas.join('\n'));
 }
-configurarLobby();
