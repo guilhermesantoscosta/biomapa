@@ -221,8 +221,8 @@ function configurarLobby() {
   };
 
   lista.innerHTML = "";
-  adicionarLinhaJogador("Jogador 1", CORES_JOGADORES);
-  adicionarLinhaJogador("Jogador 2", CORES_JOGADORES);
+  adicionarLinhaJogador("Jogador 1", "#111827");
+  adicionarLinhaJogador("Jogador 2", "#f8fafc");
 
   btnAdd.onclick = () => adicionarLinhaJogador();
 
