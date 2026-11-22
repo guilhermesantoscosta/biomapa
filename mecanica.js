@@ -83,6 +83,14 @@ function desenharRios(rios = []) {
   }).join('');
 }
 
+function desenharContornoBrasil(pontos = []) {
+  const camada = document.getElementById('camada-fronteira');
+  if (!camada || !Array.isArray(pontos) || pontos.length === 0) return;
+
+  const coords = pontos.map(([x, y]) => `${x},${y}`).join(' ');
+  camada.innerHTML = `<polyline points="${coords}" class="fronteira-brasil" />`;
+}
+
 const celulasAdjacentes = (vx, vy) => [
   [vx - 1, vy - 1], [vx, vy - 1],
   [vx - 1, vy],     [vx, vy]
