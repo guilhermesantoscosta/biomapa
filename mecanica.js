@@ -297,67 +297,76 @@ function play(vx, vy) {
 }
 
 const shapeSVG = (x, y, equipe, cor, extra = "") => equipe === 1
-  ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`: <polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />;
+  ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`
+  : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />`;
+
 function render() {
-if (!dom.pecas) return;
-let html = "";
-for (let y = 1; y < state.rows; y++) {
-for (let x = 1; x < state.cols; x++) {
-const celula = state.board[y]?.[x];
-if (celula) {
-const isLast = state.lastMove && state.lastMove.x === x && state.lastMove.y === y;
-html += shapeSVG(x, y, celula.equipe, celula.cor, isLast ? "peca-nova" : "");
+  if (!dom.pecas) return;
+  let html = "";
+  for (let y = 1; y < state.rows; y++) {
+    for (let x = 1; x < state.cols; x++) {
+      const celula = state.board[y]?.[x];
+      if (celula) {
+        const isLast = state.lastMove && state.lastMove.x === x && state.lastMove.y === y;
+        html += shapeSVG(x, y, celula.equipe, celula.cor, isLast ? "peca-nova" : "");
+      }
+    }
+  }
+  if (state.lastMove) {
+    html += `<circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.45" class="onda-efeito" style="stroke: ${state.lastMove.cor || '#fff'};" />`;
+    html += `<circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />`;
+  }
+  dom.pecas.innerHTML = html;
+  if (typeof atualizarPontuacaoEInterface === 'function') {
+    atualizarPontuacaoEInterface(state.caps);
+  }
 }
-}
-}
-if (state.lastMove) {
-html += <circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.35" class="onda-efeito" style="stroke: ${state.lastMove.cor || '#fff'};" />;
-html += <circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />;
-}
-dom.pecas.innerHTML = html;
-if (typeof atualizarPontuacaoEInterface === 'function') {
-atualizarPontuacaoEInterface(state.caps);
-}
-}
+
 function getVertex(e) {
-const pt = dom.svg.createSVGPoint();
-pt.x = e.clientX;
-pt.y = e.clientY;
-const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
-return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
+  const pt = dom.svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
+  return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
 }
+
 dom.svg.addEventListener('mousemove', e => {
-if (!state.mapa) return;
-const { vx, vy } = getVertex(e);
-const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
-const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
-const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
-dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
-if (inBounds) setAviso(Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)});
+  if (!state.mapa) return;
+  const { vx, vy } = getVertex(e);
+  const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
+  const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
+  const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
+  dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
+  if (inBounds) setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
 });
+
 dom.svg.addEventListener('mouseleave', () => {
-dom.ghost.innerHTML = "";
+  dom.ghost.innerHTML = "";
 });
+
 dom.svg.addEventListener('click', e => {
-const { vx, vy } = getVertex(e);
-play(vx, vy);
+  const { vx, vy } = getVertex(e);
+  play(vx, vy);
 });
+
 dom.btnModo.addEventListener('click', () => {
-state.landOnly = !state.landOnly;
-dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
-dom.btnModo.classList.toggle('ativo', state.landOnly);
+  state.landOnly = !state.landOnly;
+  dom.btnModo.textContent = state.landOnly ? "Só Continente" : "Mapa Completo";
+  dom.btnModo.classList.toggle('ativo', state.landOnly);
 });
+
 dom.btnPass.addEventListener('click', () => {
-if (typeof avancarTurnoAlternado === 'function') {
-bonusState.jogadaExtraUsada = false;
-state.turn = avancarTurnoAlternado();
-sfx.peca();
-setAviso("Turno passado.");
-render();
-}
+  if (typeof avancarTurnoAlternado === 'function') {
+    bonusState.jogadaExtraUsada = false;
+    state.turn = avancarTurnoAlternado();
+    sfx.peca();
+    setAviso("Turno passado.");
+    render();
+  }
 });
+
 dom.btnReset.addEventListener('click', () => {
-document.getElementById('modal-setup')?.classList.remove('hidden');
+  document.getElementById('modal-setup')?.classList.remove('hidden');
 });
+
 carregarMapa();
-  
