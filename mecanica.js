@@ -292,4 +292,9 @@ async function iniciarSistema() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', iniciarSistema);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', iniciarSistema);
+} else {
+  iniciarSistema();
+}
+
