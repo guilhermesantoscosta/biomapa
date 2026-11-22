@@ -21,7 +21,7 @@ function configurarLobby() {
   const atualizarRegras = () => {
     const linhas = lista.querySelectorAll('.jogador-row');
     linhas.forEach((row, index) => {
-      const perfil = PERFIS_FIXOS[index];
+      const perfil = PERFIS_FIXOS.at(index);
       const badge = row.querySelector('.badge-equipe');
       badge.textContent = perfil.equipe === 1 ? '● Defensor' : '▲ Expansão';
       badge.className = `badge-equipe ${perfil.equipe === 1 ? 'badge-defensor' : 'badge-expansao'}`;
@@ -41,7 +41,7 @@ function configurarLobby() {
     const qtd = lista.querySelectorAll('.jogador-row').length;
     if (qtd >= 4) return;
 
-    const perfil = PERFIS_FIXOS[qtd];
+    const perfil = PERFIS_FIXOS.at(qtd);
     const row = document.createElement('div');
     row.className = 'jogador-row';
     row.innerHTML = `
@@ -94,9 +94,11 @@ function configurarLobby() {
 
 function getJogadorAtual() {
   if (gameSession.equipeAtiva === 1) {
-    return gameSession.equipe1[gameSession.idx1 % gameSession.equipe1.length] || null;
+    if (gameSession.equipe1.length === 0) return null;
+    return gameSession.equipe1.at(gameSession.idx1 % gameSession.equipe1.length);
   }
-  return gameSession.equipe2[gameSession.idx2 % gameSession.equipe2.length] || null;
+  if (gameSession.equipe2.length === 0) return null;
+  return gameSession.equipe2.at(gameSession.idx2 % gameSession.equipe2.length);
 }
 
 function avancarTurnoAlternado() {
