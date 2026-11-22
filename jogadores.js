@@ -1,9 +1,17 @@
 const PERFIS_FIXOS = [
-  { nomePadrao: "Jogador 1", cor: "#111827", equipe: 1 }, // Preto Carvão (Defensor)
-  { nomePadrao: "Jogador 2", cor: "#f8fafc", equipe: 2 }, // Branco Neve (Expansão)
-  { nomePadrao: "Jogador 3", cor: "#ef4444", equipe: 1 }, // Vermelho Vivo (Defensor)
-  { nomePadrao: "Jogador 4", cor: "#2563eb", equipe: 2 }  // Azul Royal (Expansão)
+  { nomePadrao: "Jogador 1",  cor: "#111827", equipe: 1 }, // 1. Preto Carvão (Defensor)
+  { nomePadrao: "Jogador 2",  cor: "#f8fafc", equipe: 2 }, // 2. Branco Neve (Expansão)
+  { nomePadrao: "Jogador 3",  cor: "#ef4444", equipe: 1 }, // 3. Vermelho Vivo (Defensor)
+  { nomePadrao: "Jogador 4",  cor: "#2563eb", equipe: 2 }, // 4. Azul Royal (Expansão)
+  { nomePadrao: "Jogador 5",  cor: "#9333ea", equipe: 1 }, // 5. Roxo Intenso (Defensor)
+  { nomePadrao: "Jogador 6",  cor: "#f97316", equipe: 2 }, // 6. Laranja Vibrante (Expansão)
+  { nomePadrao: "Jogador 7",  cor: "#ec4899", equipe: 1 }, // 7. Rosa Choque (Defensor)
+  { nomePadrao: "Jogador 8",  cor: "#06b6d4", equipe: 2 }, // 8. Ciano Elétrico (Expansão)
+  { nomePadrao: "Jogador 9",  cor: "#eab308", equipe: 1 }, // 9. Amarelo Ouro (Defensor)
+  { nomePadrao: "Jogador 10", cor: "#14b8a6", equipe: 2 }  // 10. Verde Turquesa (Expansão)
 ];
+
+const MAX_JOGADORES = 10;
 
 const gameSession = {
   equipe1: [],
@@ -33,13 +41,13 @@ function configurarLobby() {
       btnRem.style.display = linhas.length > 2 ? 'inline-block' : 'none';
     });
 
-    btnAdd.disabled = linhas.length >= 4;
-    btnAdd.textContent = `+ Jogador (${linhas.length}/4)`;
+    btnAdd.disabled = linhas.length >= MAX_JOGADORES;
+    btnAdd.textContent = `+ Jogador (${linhas.length}/${MAX_JOGADORES})`;
   };
 
   const adicionarJogador = () => {
     const qtd = lista.querySelectorAll('.jogador-row').length;
-    if (qtd >= 4) return;
+    if (qtd >= MAX_JOGADORES) return;
 
     const perfil = PERFIS_FIXOS.at(qtd);
     const row = document.createElement('div');
