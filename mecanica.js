@@ -8,7 +8,8 @@ const dom = {
   aviso: document.getElementById('aviso'),
   btnModo: document.getElementById('btn-modo'),
   btnPass: document.getElementById('btn-pass'),
-  btnReset: document.getElementById('btn-reset')
+  btnReset: document.getElementById('btn-reset'),
+  btnJogarNovamente: document.getElementById('btn-jogar-novamente')
 };
 
 const state = {
@@ -23,112 +24,6 @@ const state = {
   landOnly: true
 };
 
-// Adicione logo após a declaração de `state`:
-const bonusState = {
-  jogadaExtraUsada: false,
-  biomasDominados: new Set() // Evita repetir o bônus pelo mesmo marco no mesmo bioma
-};
-
-// Funções auxiliares para verificar Rios, Nascentes e Domínio de Bioma
-function verificarTipoHidrico(vx, vy) {
-  if (!state.mapa || !Array.isArray(state.mapa.rios)) return null;
-  for (const rio of state.mapa.rios) {
-    if (rio.nascente && rio.nascente.x === vx && rio.nascente.y === vy) {
-      return { tipo: "nascente", nome: rio.nome, pts: 3 };
-    }
-    if (Array.isArray(rio.vertices) && rio.vertices.some(([rx, ry]) => rx === vx && ry === vy)) {
-      return { tipo: "rio", nome: rio.nome, pts: 1 };
-    }
-  }
-  return null;
-}
-
-function contarPecasEquipeNoBioma(boardState, biomaAlvo, equipe) {
-  if (!biomaAlvo || biomaAlvo === "Oceano") return 0;
-  let total = 0;
-  for (let y = 1; y < state.rows; y++) {
-    for (let x = 1; x < state.cols; x++) {
-      if (boardState[y][x]?.equipe === equipe && getBiomaNoVertice(x, y) === biomaAlvo) {
-        total++;
-      }
-    }
-  }
-  return total;
-}
-
-// Substitua a função play(vx, vy) existente por esta:
-function play(vx, vy) {
-  if (!state.mapa || vx < 1 || vx >= state.cols || vy < 1 || vy >= state.rows) return;
-  if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
-  if (state.board[vy][vx] !== null) return setAviso("Vértice já ocupado.");
-
-  const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
-  if (!jogador) {
-    document.getElementById('modal-setup')?.classList.remove('hidden');
-    return;
-  }
-
-  const nextBoard = state.board.map(row => [...row]);
-  nextBoard[vy][vx] = { equipe: state.turn, cor: jogador.cor };
-
-  const opp = state.turn === 1 ? 2 : 1;
-  let captured = 0;
-
-  for (const [nx, ny] of neighbors(vx, vy)) {
-    if (nextBoard[ny][nx]?.equipe === opp) {
-      const group = getGroup(nx, ny, nextBoard);
-      if (group.libs === 0) {
-        group.stones.forEach(([gx, gy]) => nextBoard[gy][gx] = null);
-        captured += group.stones.length;
-      }
-    }
-  }
-
-  if (getGroup(vx, vy, nextBoard).libs === 0) {
-    return setAviso("Jogada inválida (Suicídio): grupo sem liberdades.");
-  }
-
-  state.board = nextBoard;
-  state.lastMove = { x: vx, y: vy };
-
-  // 1. Cálculo de Pontos (Capturas + Bônus de Rio/Nascente)
-  const hidrico = verificarTipoHidrico(vx, vy);
-  const bonusAgua = hidrico ? hidrico.pts : 0;
-  const pontosTotaisJogada = captured + bonusAgua;
-
-  if (state.turn === 1) state.caps.team1 += pontosTotaisJogada;
-  else state.caps.team2 += pontosTotaisJogada;
-
-  // 2. Verificação de Domínio de Bioma (a cada 5 peças da equipe no mesmo bioma = Jogada Extra)
-  const biomaAtual = getBiomaNoVertice(vx, vy);
-  const qtdNoBioma = contarPecasEquipeNoBioma(state.board, biomaAtual, state.turn);
-  const chaveMarco = `${state.turn}-${biomaAtual}-${qtdNoBioma}`;
-  let ganhouJogadaExtra = false;
-
-  if (qtdNoBioma > 0 && qtdNoBioma % 5 === 0 && !bonusState.biomasDominados.has(chaveMarco) && !bonusState.jogadaExtraUsada) {
-    bonusState.biomasDominados.add(chaveMarco);
-    bonusState.jogadaExtraUsada = true;
-    ganhouJogadaExtra = true;
-  }
-
-  // 3. Montagem dos avisos e controle de turno
-  const mensagens = [];
-  if (captured) mensagens.push(`Captura! +${captured} pt(s)`);
-  if (hidrico?.tipo === "nascente") mensagens.push(`💧 Nascente (${hidrico.nome}): +3 pts!`);
-  if (hidrico?.tipo === "rio") mensagens.push(`🌊 Curso do Rio (${hidrico.nome}): +1 pt!`);
-
-  if (ganhouJogadaExtra) {
-    mensagens.push(`🌿 DOMÍNIO DE BIOMA (${biomaAtual} - ${qtdNoBioma} peças): JOGADA EXTRA para ${jogador.nome}!`);
-    // Mantém o mesmo jogador ativo (não chama avancarTurnoAlternado)
-  } else {
-    bonusState.jogadaExtraUsada = false;
-    state.turn = typeof avancarTurnoAlternado === 'function' ? avancarTurnoAlternado() : opp;
-  }
-
-  setAviso(mensagens.join(" | "));
-  render();
-}
-
 const setAviso = (txt) => {
   if (dom.aviso) dom.aviso.textContent = txt;
 };
@@ -138,6 +33,7 @@ function initBoard() {
   state.caps = { team1: 0, team2: 0 };
   state.turn = 1;
   state.lastMove = null;
+  if (typeof resetarPontuacao === 'function') resetarPontuacao();
 }
 
 function criarMapaFallback() {
@@ -234,6 +130,9 @@ function getGroup(sx, sy, boardState) {
 }
 
 function play(vx, vy) {
+  if (typeof scoreState !== 'undefined' && scoreState.jogoEncerrado) {
+    return setAviso("Partida encerrada! Clique em 'Nova Partida' para jogar outra vez.");
+  }
   if (!state.mapa || vx < 1 || vx >= state.cols || vy < 1 || vy >= state.rows) return;
   if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
   if (state.board[vy][vx] !== null) return setAviso("Vértice já ocupado.");
@@ -265,13 +164,25 @@ function play(vx, vy) {
   }
 
   state.board = nextBoard;
-  if (state.turn === 1) state.caps.team1 += captured;
-  else state.caps.team2 += captured;
-
   state.lastMove = { x: vx, y: vy };
-  state.turn = typeof avancarTurnoAlternado === 'function' ? avancarTurnoAlternado() : opp;
 
-  setAviso(captured ? `Captura! +${captured} ponto(s) para a equipe.` : "");
+  const resultado = typeof processarJogadaPontuacao === 'function'
+    ? processarJogadaPontuacao({
+        vx, vy, equipe: state.turn, captured,
+        board: state.board, mapa: state.mapa,
+        rows: state.rows, cols: state.cols,
+        jogadorNome: jogador.nome
+      })
+    : { pontosJogada: captured, ganhouJogadaExtra: false, mensagem: captured ? `Captura! +${captured}` : "" };
+
+  if (state.turn === 1) state.caps.team1 += resultado.pontosJogada;
+  else state.caps.team2 += resultado.pontosJogada;
+
+  if (!resultado.ganhouJogadaExtra) {
+    state.turn = typeof avancarTurnoAlternado === 'function' ? avancarTurnoAlternado() : opp;
+  }
+
+  setAviso(resultado.mensagem);
   render();
 }
 
@@ -293,7 +204,8 @@ function render() {
   }
   dom.pecas.innerHTML = html;
 
-  if (typeof atualizarPontuacaoEInterface === 'function') {
+  const encerrado = typeof scoreState !== 'undefined' && scoreState.jogoEncerrado;
+  if (!encerrado && typeof atualizarPontuacaoEInterface === 'function') {
     atualizarPontuacaoEInterface(state.caps);
   }
 }
@@ -307,7 +219,7 @@ function getVertex(e) {
 }
 
 dom.svg.addEventListener('mousemove', e => {
-  if (!state.mapa) return;
+  if (!state.mapa || (typeof scoreState !== 'undefined' && scoreState.jogoEncerrado)) return;
   const { vx, vy } = getVertex(e);
   const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
   const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
@@ -332,15 +244,34 @@ dom.btnModo.addEventListener('click', () => {
 });
 
 dom.btnPass.addEventListener('click', () => {
-  if (typeof avancarTurnoAlternado === 'function') {
-    state.turn = avancarTurnoAlternado();
-    setAviso("Turno passado.");
+  if (typeof scoreState !== 'undefined' && scoreState.jogoEncerrado) return;
+  const atual = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
+
+  if (typeof registrarPasseETestarFim === 'function') {
+    const status = registrarPasseETestarFim(state.board, state.rows, state.cols);
+    if (status.encerrou) {
+      dom.ghost.innerHTML = "";
+      setAviso("Partida finalizada! Todos os jogadores passaram a vez.");
+      return;
+    }
+    if (typeof avancarTurnoAlternado === 'function') {
+      state.turn = avancarTurnoAlternado();
+    }
+    setAviso(`${atual ? atual.nome : 'Jogador'} passou a vez (${status.passes}/${status.totalJogadores} passes para encerrar).`);
     render();
   }
 });
 
 dom.btnReset.addEventListener('click', () => {
+  document.getElementById('modal-fim')?.classList.add('hidden');
   document.getElementById('modal-setup')?.classList.remove('hidden');
 });
+
+if (dom.btnJogarNovamente) {
+  dom.btnJogarNovamente.addEventListener('click', () => {
+    document.getElementById('modal-fim')?.classList.add('hidden');
+    document.getElementById('modal-setup')?.classList.remove('hidden');
+  });
+}
 
 carregarMapa();
