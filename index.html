@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Biomapa</title>
+  <title>Biomapa - Estratégia Ambiental</title>
   <style>
     :root {
       --bg-dark: #0f172a;
@@ -13,6 +13,8 @@
       --text-muted: #cbd5e1;
       --accent: #0284c7;
       --accent-hover: #38bdf8;
+      --green: #16a34a;
+      --amber: #d97706;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -27,6 +29,86 @@
       min-height: 100vh;
     }
 
+    /* Modal de Configuração (2 a 16 jogadores) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 540px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); }
+    .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+
+    .setup-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      background: var(--bg-dark);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+    .setup-row select {
+      background: var(--bg-panel);
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .nomes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .nome-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-dark);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .nome-item span { font-size: 14px; font-weight: bold; }
+    .nome-item input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--green);
+      border-color: #22c55e;
+      padding: 10px;
+      font-size: 16px;
+    }
+    .btn-primary:hover { background: #15803d; }
+
     /* Painel Superior (HUD) */
     .hud {
       width: 100%;
@@ -37,17 +119,23 @@
       padding: 12px 18px;
       margin-bottom: 14px;
       display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hud-top {
+      display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
     }
 
-    .turno { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+    .turno { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
     .placar { display: flex; gap: 16px; font-size: 14px; color: var(--text-muted); }
     .placar strong { color: #fff; font-size: 16px; }
 
-    .controles { display: flex; gap: 8px; }
+    .controles { display: flex; gap: 8px; flex-wrap: wrap; }
     button {
       background: var(--border);
       color: #fff;
@@ -60,6 +148,29 @@
     }
     button:hover { background: #475569; }
     button.ativo { background: var(--accent); border-color: var(--accent-hover); }
+
+    /* Carta de Objetivo do Jogador Atual */
+    .objetivo-card {
+      background: var(--bg-dark);
+      border-left: 4px solid var(--accent-hover);
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .objetivo-info h4 { font-size: 14px; color: var(--accent-hover); margin-bottom: 2px; }
+    .objetivo-info p { font-size: 12px; color: var(--text-muted); }
+    .objetivo-pts {
+      background: var(--bg-panel);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      border: 1px solid var(--border);
+    }
 
     .aviso {
       width: 100%;
@@ -112,20 +223,52 @@
 </head>
 <body>
 
+  <!-- MODAL DE CONFIGURAÇÃO DE JOGADORES -->
+  <div class="modal-overlay" id="modal-setup">
+    <div class="modal-box">
+      <h2>🌎 Biomapa: Configurar Partida</h2>
+      <p>Escolha de 2 a 16 jogadores. Os turnos alternam entre <strong>● Defensores (Círculos)</strong> e <strong>▲ Expansão (Triângulos)</strong>.</p>
+      
+      <div class="setup-row">
+        <label for="qtd-jogadores"><strong>Número de Jogadores:</strong></label>
+        <select id="qtd-jogadores"></select>
+      </div>
+
+      <div class="nomes-grid" id="lista-nomes"></div>
+
+      <button class="btn-primary" id="btn-iniciar">Iniciar Partida e Sortear Objetivos</button>
+    </div>
+  </div>
+
+  <!-- PAINEL SUPERIOR (HUD) -->
   <header class="hud">
-    <div class="turno" id="turno">Carregando mapa...</div>
-    <div class="placar">
-      <span>● Círculos: <strong id="c1">0</strong></span>
-      <span>▲ Triângulos: <strong id="c2">0</strong></span>
+    <div class="hud-top">
+      <div class="turno" id="turno">Carregando mapa...</div>
+      <div class="placar">
+        <span>● Defensores: <strong id="c1">0</strong> pts</span>
+        <span>▲ Expansão: <strong id="c2">0</strong> pts</span>
+      </div>
+      <div class="controles">
+        <button id="btn-modo" class="ativo">Só Continente</button>
+        <button id="btn-pass">Passar</button>
+        <button id="btn-placar">Placar Geral</button>
+        <button id="btn-reset">Nova Partida</button>
+      </div>
     </div>
-    <div class="controles">
-      <button id="btn-modo" class="ativo">Só Continente</button>
-      <button id="btn-pass">Passar</button>
-      <button id="btn-reset">Reiniciar</button>
+
+    <!-- Carta de Objetivo do Jogador da Vez -->
+    <div class="objetivo-card" id="objetivo-card">
+      <div class="objetivo-info">
+        <h4 id="obj-titulo">Objetivo Ambiental</h4>
+        <p id="obj-desc">Inicie a partida para revelar a missão deste jogador.</p>
+      </div>
+      <div class="objetivo-pts" id="obj-pts">0 pts</div>
     </div>
+
     <div class="aviso" id="aviso"></div>
   </header>
 
+  <!-- TABULEIRO SVG -->
   <main class="board">
     <svg id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
       <defs>
@@ -159,7 +302,3 @@
     </svg>
   </main>
 
-  <!-- Conexão com o arquivo da mecânica das peças -->
-  <script src="./mecanica.js"></script>
-</body>
-</html>
