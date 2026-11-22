@@ -59,7 +59,7 @@ async function carregarMapa() {
       state.cell = state.mapa.config.tamanhoCelula || 60;
     }
     setAviso("Mapa carregado! Clique nos vértices do continente para jogar.");
-  } catch {
+  } catch (e) {
     state.mapa = criarMapaFallback();
     setAviso("Mapa iniciado! Clique nos vértices do continente para jogar.");
   }
@@ -84,18 +84,23 @@ const celulasAdjacentes = (vx, vy) => [
 ].filter(([x, y]) => y >= 0 && y < state.rows && x >= 0 && x < state.cols);
 
 function isLand(vx, vy) {
-  if (!state.mapa?.grid) return false;
+  if (!state.mapa || !state.mapa.grid) return false;
   return celulasAdjacentes(vx, vy).some(([x, y]) => {
-    const cod = state.mapa.grid[y]?.[x] ?? 0;
-    return state.mapa.terrenos?.[cod]?.continente ?? (cod > 0);
+    const linha = state.mapa.grid.at(y);
+    const cod = linha ? linha.at(x) : 0;
+    const terreno = state.mapa.terrenos ? state.mapa.terrenos[cod] : null;
+    return terreno ? terreno.continente : (cod > 0);
   });
 }
 
 function getBiomaNoVertice(vx, vy) {
-  if (!state.mapa?.grid) return "";
+  if (!state.mapa || !state.mapa.grid) return "";
   for (const [x, y] of celulasAdjacentes(vx, vy)) {
-    const cod = state.mapa.grid[y]?.[x] ?? 0;
-    if (cod > 0 && state.mapa.terrenos?.[cod]) return state.mapa.terrenos[cod].nome;
+    const linha = state.mapa.grid.at(y);
+    const cod = linha ? linha.at(x) : 0;
+    if (cod > 0 && state.mapa.terrenos && state.mapa.terrenos[cod]) {
+      return state.mapa.terrenos[cod].nome;
+    }
   }
   return "Oceano";
 }
@@ -107,7 +112,8 @@ function neighbors(vx, vy) {
 }
 
 function getGroup(sx, sy, boardState) {
-  const equipe = boardState[sy][sx]?.equipe;
+  const celulaInicial = boardState.at(sy).at(sx);
+  const equipe = celulaInicial ? celulaInicial.equipe : null;
   const visited = new Set([`${sx},${sy}`]);
   const libs = new Set();
   const stones = [];
@@ -118,7 +124,7 @@ function getGroup(sx, sy, boardState) {
     stones.push([x, y]);
     for (const [nx, ny] of neighbors(x, y)) {
       const key = `${nx},${ny}`;
-      const cell = boardState[ny][nx];
+      const cell = boardState.at(ny).at(nx);
       if (!cell) libs.add(key);
       else if (cell.equipe === equipe && !visited.has(key)) {
         visited.add(key);
@@ -135,25 +141,27 @@ function play(vx, vy) {
   }
   if (!state.mapa || vx < 1 || vx >= state.cols || vy < 1 || vy >= state.rows) return;
   if (state.landOnly && !isLand(vx, vy)) return setAviso("Jogue apenas nos vértices do continente.");
-  if (state.board[vy][vx] !== null) return setAviso("Vértice já ocupado.");
+  if (state.board.at(vy).at(vx) !== null) return setAviso("Vértice já ocupado.");
 
   const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   if (!jogador) {
-    document.getElementById('modal-setup')?.classList.remove('hidden');
+    const modalSetup = document.getElementById('modal-setup');
+    if (modalSetup) modalSetup.classList.remove('hidden');
     return;
   }
 
   const nextBoard = state.board.map(row => [...row]);
-  nextBoard[vy][vx] = { equipe: state.turn, cor: jogador.cor };
+  nextBoard.at(vy).splice(vx, 1, { equipe: state.turn, cor: jogador.cor });
 
   const opp = state.turn === 1 ? 2 : 1;
   let captured = 0;
 
   for (const [nx, ny] of neighbors(vx, vy)) {
-    if (nextBoard[ny][nx]?.equipe === opp) {
+    const vizinho = nextBoard.at(ny).at(nx);
+    if (vizinho && vizinho.equipe === opp) {
       const group = getGroup(nx, ny, nextBoard);
       if (group.libs === 0) {
-        group.stones.forEach(([gx, gy]) => nextBoard[gy][gx] = null);
+        group.stones.forEach(([gx, gy]) => nextBoard.at(gy).splice(gx, 1, null));
         captured += group.stones.length;
       }
     }
@@ -168,7 +176,7 @@ function play(vx, vy) {
 
   const resultado = typeof processarJogadaPontuacao === 'function'
     ? processarJogadaPontuacao({
-        vx, vy, equipe: state.turn, captured,
+        vx: vx, vy: vy, equipe: state.turn, captured: captured,
         board: state.board, mapa: state.mapa,
         rows: state.rows, cols: state.cols,
         jogadorNome: jogador.nome
@@ -194,8 +202,10 @@ function render() {
   if (!dom.pecas) return;
   let html = "";
   for (let y = 1; y < state.rows; y++) {
+    const linha = state.board.at(y);
+    if (!linha) continue;
     for (let x = 1; x < state.cols; x++) {
-      const celula = state.board[y]?.[x];
+      const celula = linha.at(x);
       if (celula) html += shapeSVG(x, y, celula.equipe, celula.cor);
     }
   }
@@ -222,7 +232,7 @@ dom.svg.addEventListener('mousemove', e => {
   if (!state.mapa || (typeof scoreState !== 'undefined' && scoreState.jogoEncerrado)) return;
   const { vx, vy } = getVertex(e);
   const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
-  const valid = inBounds && state.board[vy]?.[vx] === null && (!state.landOnly || isLand(vx, vy));
+  const valid = inBounds && state.board.at(vy).at(vx) === null && (!state.landOnly || isLand(vx, vy));
   const jogador = typeof getJogadorAtual === 'function' ? getJogadorAtual() : null;
   dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
   if (inBounds) setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
@@ -263,15 +273,18 @@ dom.btnPass.addEventListener('click', () => {
 });
 
 dom.btnReset.addEventListener('click', () => {
-  document.getElementById('modal-fim')?.classList.add('hidden');
-  document.getElementById('modal-setup')?.classList.remove('hidden');
+  const modalFim = document.getElementById('modal-fim');
+  const modalSetup = document.getElementById('modal-setup');
+  if (modalFim) modalFim.classList.add('hidden');
+  if (modalSetup) modalSetup.classList.remove('hidden');
 });
 
 if (dom.btnJogarNovamente) {
   dom.btnJogarNovamente.addEventListener('click', () => {
-    document.getElementById('modal-fim')?.classList.add('hidden');
-    document.getElementById('modal-setup')?.classList.remove('hidden');
-  });
+    const modalFim = document.getElementById('modal-fim');
+    const modalSetup = document.getElementById('modal-setup');
+    if (modalFim) modalFim.classList.add('hidden');
+    if (modalSetup) modalSetup.classList.remove('hidden');
+    });
 }
-
 carregarMapa();
