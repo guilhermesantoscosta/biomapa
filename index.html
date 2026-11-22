@@ -5,242 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Biomapa - Estratégia Ambiental</title>
   <style>
-    :root {
-      --bg-dark: #0f172a;
-      --bg-panel: #1e293b;
-      --border: #334155;
-      --text-main: #f8fafc;
-      --text-muted: #cbd5e1;
-      --accent: #0284c7;
-      --accent-hover: #38bdf8;
-      --green: #16a34a;
-      --amber: #d97706;
-    }
-
+    :root { --bg: #0f172a; --panel: #1e293b; --border: #334155; --txt: #f8fafc; --muted: #cbd5e1; --accent: #0284c7; --hover: #38bdf8; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    
-    body {
-      background: var(--bg-dark);
-      color: var(--text-main);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 14px;
-      min-height: 100vh;
-    }
+    body { background: var(--bg); color: var(--txt); display: flex; flex-direction: column; align-items: center; padding: 14px; min-height: 100vh; }
 
-    /* Modal de Configuração (2 a 16 jogadores) */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.9);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      padding: 16px;
-    }
+    /* Modal Setup */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.9); display: flex; justify-content: center; align-items: center; z-index: 100; padding: 16px; }
     .modal-overlay.hidden { display: none; }
-
-    .modal-box {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px;
-      max-width: 540px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-    }
-    .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); }
-    .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
-
-    .setup-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-      background: var(--bg-dark);
-      padding: 10px 14px;
-      border-radius: 8px;
-    }
-    .setup-row select {
-      background: var(--bg-panel);
-      color: #fff;
-      border: 1px solid var(--border);
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 15px;
-      font-weight: bold;
-    }
-
-    .nomes-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 18px;
-    }
-    .nome-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--bg-dark);
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
-    .nome-item span { font-size: 14px; font-weight: bold; }
-    .nome-item input {
-      width: 100%;
-      background: transparent;
-      border: none;
-      color: #fff;
-      font-size: 13px;
-      outline: none;
-    }
-
-    .btn-primary {
-      width: 100%;
-      background: var(--green);
-      border-color: #22c55e;
-      padding: 10px;
-      font-size: 16px;
-    }
+    .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 24px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,.6); }
+    .modal-box h2 { margin-bottom: 6px; color: var(--hover); }
+    .modal-box p { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .lista-jogadores { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .jogador-row { display: flex; align-items: center; gap: 8px; background: var(--bg); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .badge-equipe { font-size: 13px; font-weight: 700; min-width: 95px; color: var(--muted); }
+    .jogador-row input[type="text"] { flex: 1; background: transparent; border: none; color: #fff; font-size: 14px; outline: none; }
+    .jogador-row input[type="color"] { width: 32px; height: 32px; border: none; border-radius: 6px; background: transparent; cursor: pointer; }
+    .btn-remove { background: transparent; border: 1px solid #475569; color: #94a3b8; padding: 4px 8px; font-size: 12px; border-radius: 6px; }
+    .btn-remove:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+    .setup-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .btn-add { flex: 1; background: var(--accent); border-color: var(--hover); padding: 10px; font-size: 14px; }
+    .btn-add:hover { background: #0369a1; }
+    .btn-add:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { flex: 2; background: #16a34a; border-color: #22c55e; padding: 10px; font-size: 15px; }
     .btn-primary:hover { background: #15803d; }
 
-    /* Painel Superior (HUD) */
-    .hud {
-      width: 100%;
-      max-width: 960px;
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 18px;
-      margin-bottom: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .hud-top {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-
+    /* HUD & Controles */
+    .hud { width: 100%; max-width: 960px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .hud-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
     .turno { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
-    .placar { display: flex; gap: 16px; font-size: 14px; color: var(--text-muted); }
+    .cor-indicador { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
+    .placar { display: flex; gap: 16px; font-size: 14px; color: var(--muted); }
     .placar strong { color: #fff; font-size: 16px; }
-
     .controles { display: flex; gap: 8px; flex-wrap: wrap; }
-    button {
-      background: var(--border);
-      color: #fff;
-      border: 1px solid #475569;
-      padding: 7px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.15s;
-    }
+    button { background: var(--border); color: #fff; border: 1px solid #475569; padding: 7px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: .15s; }
     button:hover { background: #475569; }
-    button.ativo { background: var(--accent); border-color: var(--accent-hover); }
+    button.ativo { background: var(--accent); border-color: var(--hover); }
+    .objetivo-card { background: var(--bg); border-left: 4px solid var(--hover); padding: 10px 14px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .objetivo-info h4 { font-size: 14px; color: var(--hover); margin-bottom: 2px; }
+    .objetivo-info p { font-size: 12px; color: var(--muted); }
+    .objetivo-pts { background: var(--panel); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 1px solid var(--border); }
+    .aviso { width: 100%; text-align: center; font-size: 13px; color: #fbbf24; min-height: 18px; }
 
-    /* Carta de Objetivo do Jogador Atual */
-    .objetivo-card {
-      background: var(--bg-dark);
-      border-left: 4px solid var(--accent-hover);
-      padding: 10px 14px;
-      border-radius: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .objetivo-info h4 { font-size: 14px; color: var(--accent-hover); margin-bottom: 2px; }
-    .objetivo-info p { font-size: 12px; color: var(--text-muted); }
-    .objetivo-pts {
-      background: var(--bg-panel);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: bold;
-      border: 1px solid var(--border);
-    }
-
-    .aviso {
-      width: 100%;
-      text-align: center;
-      font-size: 13px;
-      color: #fbbf24;
-      min-height: 18px;
-    }
-
-    /* Tabuleiro SVG */
-    .board {
-      width: 100%;
-      max-width: 880px;
-      aspect-ratio: 3/4;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 3px solid var(--border);
-      background: #38bdf8;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    }
-
+    /* Tabuleiro & Biomas */
+    .board { width: 100%; max-width: 880px; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; border: 3px solid var(--border); background: var(--hover); box-shadow: 0 10px 25px rgba(0,0,0,.4); }
     svg { width: 100%; height: 100%; display: block; cursor: crosshair; }
-
-    /* Biomas */
-    .mar     { fill: #38bdf8; }
-    .andes   { fill: #64748b; }
-    .atacama { fill: #d97706; }
-    .patag   { fill: #d6d3d1; }
-    .valdiv  { fill: #065f46; }
-    .amaz    { fill: #15803d; }
-    .llanos  { fill: #fde047; }
-    .cerrado { fill: #eab308; }
-    .caat    { fill: #fb923c; }
-    .mata    { fill: #4ade80; }
-    .pant    { fill: #84cc16; }
-    .pampa   { fill: #bef264; }
-    .espinal { fill: #a3a380; }
-
-    /* Fronteiras e Hidrografia */
-    .borda-br { stroke: #052e16; stroke-width: 0.08; fill: none; stroke-linecap: square; }
-    .rio      { stroke: #0284c7; stroke-width: 0.09; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .nascente { fill: #0369a1; stroke: #fff; stroke-width: 0.04; }
-
-    /* Peças */
-    .p1    { fill: #111827; stroke: #f8fafc; stroke-width: 0.05; }
-    .p2    { fill: #f8fafc; stroke: #111827; stroke-width: 0.05; stroke-linejoin: round; }
-    .ghost { opacity: 0.45; pointer-events: none; }
-    .last  { fill: #ef4444; pointer-events: none; }
+    .mar { fill: #38bdf8; } .andes { fill: #64748b; } .atacama { fill: #d97706; } .patag { fill: #d6d3d1; } .valdiv { fill: #065f46; }
+    .amaz { fill: #15803d; } .llanos { fill: #fde047; } .cerrado { fill: #eab308; } .caat { fill: #fb923c; } .mata { fill: #4ade80; }
+    .pant { fill: #84cc16; } .pampa { fill: #bef264; } .espinal { fill: #a3a380; }
+    .borda-br { stroke: #052e16; stroke-width: .08; fill: none; stroke-linecap: square; }
+    .rio { stroke: #0284c7; stroke-width: .09; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .nascente { fill: #0369a1; stroke: #fff; stroke-width: .04; }
+    .peca { stroke: #0f172a; stroke-width: .06; stroke-linejoin: round; }
+    .ghost { opacity: .5; pointer-events: none; }
+    .last { fill: #ef4444; stroke: #fff; stroke-width: .02; pointer-events: none; }
   </style>
 </head>
 <body>
-
-  <!-- MODAL DE CONFIGURAÇÃO DE JOGADORES -->
   <div class="modal-overlay" id="modal-setup">
     <div class="modal-box">
-      <h2>🌎 Biomapa: Configurar Partida</h2>
-      <p>Escolha de 2 a 16 jogadores. Os turnos alternam entre <strong>● Defensores (Círculos)</strong> e <strong>▲ Expansão (Triângulos)</strong>.</p>
-      
-      <div class="setup-row">
-        <label for="qtd-jogadores"><strong>Número de Jogadores:</strong></label>
-        <select id="qtd-jogadores"></select>
+      <h2>🌎 Biomapa: Configurar Jogadores</h2>
+      <p>Insira os nomes e escolha uma cor para cada participante (2 a 16). Os turnos alternam entre <strong>● Defensores</strong> e <strong>▲ Expansão</strong>.</p>
+      <div class="lista-jogadores" id="lista-jogadores"></div>
+      <div class="setup-actions">
+        <button type="button" class="btn-add" id="btn-add-jogador">+ Adicionar Jogador</button>
+        <button type="button" class="btn-primary" id="btn-iniciar">Iniciar Partida</button>
       </div>
-
-      <div class="nomes-grid" id="lista-nomes"></div>
-
-      <button class="btn-primary" id="btn-iniciar">Iniciar Partida e Sortear Objetivos</button>
     </div>
   </div>
 
-  <!-- PAINEL SUPERIOR (HUD) -->
   <header class="hud">
     <div class="hud-top">
       <div class="turno" id="turno">Carregando mapa...</div>
@@ -255,30 +87,24 @@
         <button id="btn-reset">Nova Partida</button>
       </div>
     </div>
-
-    <!-- Carta de Objetivo do Jogador da Vez -->
-    <div class="objetivo-card" id="objetivo-card">
+    <div class="objetivo-card">
       <div class="objetivo-info">
         <h4 id="obj-titulo">Objetivo Ambiental</h4>
-        <p id="obj-desc">Inicie a partida para revelar a missão deste jogador.</p>
+        <p id="obj-desc">Adicione os jogadores para sortear as missões.</p>
       </div>
       <div class="objetivo-pts" id="obj-pts">0 pts</div>
     </div>
-
     <div class="aviso" id="aviso"></div>
   </header>
 
-  <!-- TABULEIRO SVG -->
   <main class="board">
     <svg id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
       <defs>
         <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-          <path d="M 0 60 H 60 V 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity="0.35" />
+          <path d="M 0 60 H 60 V 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity=".35" />
         </pattern>
       </defs>
-
       <rect width="100%" height="100%" class="mar" />
-
       <g transform="scale(60)" id="mapa">
         <path class="andes"   d="M5,2h3v1H5z M4,3h3v1H4z M3,4h3v3H3z M4,7h3v2H4z M5,9h3v2H5z M7,11h2v3H7z M8,14h2v11H8z M8,25h1v8H8z" />
         <path class="atacama" d="M3,7h1v2H3z M4,9h1v2H4z M5,11h2v3H5z M6,14h2v3H6z" />
@@ -295,10 +121,13 @@
         <path class="borda-br" d="M13,4h3v1h2V4h2v1h1v1h4v1h3v1h1v1h-1v2h-1v3h-1v1h-1v1h-1v1h-1v1h-1v1h-1v1h-3v1h-2v-2h-1v-1h1v-2h-1v-2h-1v-2h-1v-1h-1v-1h-2V8H9V7h2V6h2Z" />
         <g id="camada-rios"></g>
       </g>
-
       <rect width="100%" height="100%" fill="url(#grid)" pointer-events="none" />
       <g transform="scale(60)" id="ghost"></g>
       <g transform="scale(60)" id="pecas"></g>
     </svg>
   </main>
 
+  <script src="./jogadores.js"></script>
+  <script src="./mecanica.js"></script>
+</body>
+</html>
