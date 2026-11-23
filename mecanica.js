@@ -1,5 +1,3 @@
-const LOCAL_JSON_URL = "./mapa-dados.json";
-
 const CORES_BIOMA = {
   0: "#38bdf8", // mar
   1: "#64748b", // andes
@@ -31,7 +29,7 @@ const state = {
   cols: 30,
   rows: 40,
   cell: 60,
-  mapa: null,
+  mapa: MAPA_DADOS,
   board: [],
   turn: 1,
   caps: { team1: 0, team2: 0 },
@@ -49,27 +47,17 @@ function initBoard() {
   state.lastMove = null;
 }
 
-async function carregarMapa() {
-  try {
-    const res = await fetch(LOCAL_JSON_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.mapa = await res.json();
-
-    if (state.mapa.config) {
-      state.cols = state.mapa.config.colunas || 30;
-      state.rows = state.mapa.config.linhas || 40;
-      state.cell = state.mapa.config.tamanhoCelula || 60;
-      canvas.width = state.cols * state.cell;
-      canvas.height = state.rows * state.cell;
-    }
-
-    initBoard();
-    setAviso("Configure os jogadores para começar!");
-    render();
-  } catch (err) {
-    setAviso("Erro ao carregar mapa-dados.json.");
-    console.error(err);
+function inicializarJogo() {
+  if (state.mapa?.config) {
+    state.cols = state.mapa.config.colunas || 30;
+    state.rows = state.mapa.config.linhas || 40;
+    state.cell = state.mapa.config.tamanhoCelula || 60;
+    canvas.width = state.cols * state.cell;
+    canvas.height = state.rows * state.cell;
   }
+  initBoard();
+  setAviso("Configure os jogadores para começar!");
+  render();
 }
 
 // =========================================================================
@@ -111,13 +99,15 @@ function render() {
 
   // 4. Rios e Nascentes
   (state.mapa.rios || []).forEach(r => {
-    if (!r.vertices?.length) return;
+    if (!r.pontos) return;
+    const coords = r.pontos.split(" ").map(par => par.split(",").map(Number));
+
     ctx.strokeStyle = "#0284c7";
     ctx.lineWidth = c * 0.09;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
-    r.vertices.forEach(([vx, vy], i) => {
+    coords.forEach(([vx, vy], i) => {
       if (i === 0) ctx.moveTo(vx * c, vy * c);
       else ctx.lineTo(vx * c, vy * c);
     });
@@ -329,4 +319,4 @@ dom.btnPass.onclick = () => {
 dom.btnPlacar.onclick = () => exibirPlacarGeral(state.caps);
 dom.btnReset.onclick = () => document.getElementById('modal-setup').classList.remove('hidden');
 
-carregarMapa();
+inicializarJogo();
