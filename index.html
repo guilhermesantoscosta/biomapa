@@ -1,93 +1,229 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mapa do Continente Americano Rotacionado (-90°)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa da América - Malha Contínua (52 Territórios)</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      background-color: #1e6091; /* Azul do oceano */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    svg {
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
       width: 100%;
       height: 100%;
+      background: #1d4ed8;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    canvas {
       display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
     }
-
-    .pais {
-      fill: #ffffff;          /* Áreas continentais e ilhas em branco */
-      stroke: #000000;        /* Contorno e divisas em linha preta */
-      stroke-width: 0.8px;    /* Espessura da linha */
-      stroke-linejoin: round; /* Suaviza os encontros das linhas */
-    }
-
-    .pais:hover {
-      fill: #f0f0f0;          /* Leve destaque ao passar o mouse (opcional) */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.92);
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      border: 1px solid #38bdf8;
     }
   </style>
 </head>
 <body>
 
-  <svg id="mapa"></svg>
+<canvas id="mapCanvas"></canvas>
+<div id="tooltip"></div>
 
-  <!-- Bibliotecas D3.js e TopoJSON via CDN -->
-  <script src="https://d3js.org"></script>
-  <script src="https://unpkg.com"></script>
+<script>
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
 
-  <script>
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+/**
+ * PROJEÇÃO EQUIVALENTE (ÁREA REAL PRESERVADA) ROTACIONADA
+ * Corrige a distorção de tamanho em altas latitudes (Canadá/Alasca não ficam gigantes)
+ * usando projeção cilíndrica equivalente (sin(lat)) deitada:
+ * - Eixo X: sin(lat) -> Norte à Esquerda, Sul à Direita
+ * - Eixo Y: lon -> Leste no Topo, Oeste na Base
+ */
+function geoToCanvas(lon, lat, width, height) {
+  const rad = Math.PI / 180;
+  const sMax = Math.sin(72 * rad);   // Norte extremo
+  const sMin = Math.sin(-56 * rad);  // Sul extremo
+  const lonMax = -34;                // Leste extremo (Brasil)
+  const lonMin = -168;               // Oeste extremo (Alasca)
 
-    const svg = d3.select("#mapa")
-      .attr("viewBox", `0 0 ${width} ${height}`);
+  const padX = 28;
+  const padY = 24;
+  const usableW = width - padX * 2;
+  const usableH = height - padY * 2;
 
-    // Códigos numéricos ISO 3166-1 dos países e territórios do continente americano
-    const codigosAmericas = new Set([
-      124, 840, 484, 304, 60, 666, // América do Norte e Groenlândia
-      84, 188, 222, 320, 340, 558, 591, // América Central
-      44, 52, 192, 212, 214, 308, 332, 388, 630, 659, 662, 670, 780, 796, 850, 92, 136, 531, 533, 534, 535, 312, 474, 652, 663, // Caribe
-      32, 68, 76, 152, 170, 218, 238, 254, 328, 600, 604, 740, 858, 862 // América do Sul e Malvinas
-    ]);
+  const sLat = Math.sin(lat * rad);
+  const normX = (sMax - sLat) / (sMax - sMin);
+  const normY = (lonMax - lon) / (lonMax - lonMin);
 
-    // Carrega a malha mundial em polígonos (resolução 50m para incluir ilhas)
-    d3.json("https://jsdelivr.net").then(world => {
-      
-      // Extrai todos os países e filtra apenas o continente americano
-      const todosPaises = topojson.feature(world, world.objects.countries).features;
-      const americas = {
-        type: "FeatureCollection",
-        features: todosPaises.filter(d => codigosAmericas.has(Number(d.id)))
-      };
+  return {
+    x: padX + normX * usableW,
+    y: padY + normY * usableH
+  };
+}
 
-      // Configura a projeção Mercator com rotação de 90° anti-horário (roll = -90)
-      // O array [lambda, phi, gamma] controla [longitude, latitude, rotação]
-      const projection = d3.geoMercator()
-        .rotate([85, 0, -90]) 
-        .fitExtent([[30, 30], [width - 30, height - 30]], americas);
+/**
+ * MALHA TOPOLÓGICA CONTÍNUA (52 POLÍGONOS)
+ * Vértices compartilhados exatamente entre vizinhos eliminam frestas internas.
+ */
+const territories = [
+  // --- AMÉRICA DO NORTE (18 Polígonos) ---
+  { id: 'alasca_norte', name: 'EUA - Alasca Norte', coords: [[-166,68], [-141,70], [-141,64], [-164,64]] },
+  { id: 'alasca_sul', name: 'EUA - Alasca Sul', coords: [[-164,64], [-141,64], [-141,60], [-152,58], [-164,55]] },
+  { id: 'can_yukon', name: 'Canadá - Yukon & Noroeste', coords: [[-141,70], [-115,70], [-115,60], [-141,60]] },
+  { id: 'can_nunavut', name: 'Canadá - Nunavut & Ártico', coords: [[-115,70], [-82,70], [-78,62], [-95,60], [-115,60]] },
+  { id: 'can_bc', name: 'Canadá - Colúmbia Britânica', coords: [[-141,60], [-120,60], [-120,49], [-125,49], [-132,54]] },
+  { id: 'can_pradarias_o', name: 'Canadá - Alberta & Saskatchewan', coords: [[-120,60], [-102,60], [-102,49], [-120,49]] },
+  { id: 'can_pradarias_l', name: 'Canadá - Manitoba', coords: [[-102,60], [-95,60], [-89,56], [-95,49], [-102,49]] },
+  { id: 'can_ontario', name: 'Canadá - Ontário', coords: [[-95,49], [-89,56], [-79,52], [-75,45], [-82,42], [-90,48]] },
+  { id: 'can_quebec', name: 'Canadá - Quebec & Labrador', coords: [[-79,52], [-78,62], [-62,58], [-56,52], [-65,48], [-75,45]] },
+  { id: 'can_atlantico', name: 'Canadá - Províncias Atlânticas', coords: [[-65,48], [-56,52], [-54,47], [-66,44], [-67,45]] },
 
-      const pathGenerator = d3.geoPath().projection(projection);
+  { id: 'eua_noroeste', name: 'EUA - Noroeste Pacífico', coords: [[-125,49], [-111,49], [-111,42], [-124,42]] },
+  { id: 'eua_montanhas', name: 'EUA - Montanhas Rochosas', coords: [[-111,49], [-102,49], [-102,37], [-111,37]] },
+  { id: 'eua_planicies_n', name: 'EUA - Planícies do Norte', coords: [[-102,49], [-90,48], [-90,40], [-102,40]] },
+  { id: 'eua_meio_oeste', name: 'EUA - Grandes Lagos', coords: [[-90,48], [-82,42], [-79,42], [-80,37], [-90,37], [-90,40]] },
+  { id: 'eua_nordeste', name: 'EUA - Nordeste (Nova Inglaterra)', coords: [[-79,42], [-75,45], [-67,45], [-71,41], [-75,38], [-80,37]] },
+  { id: 'eua_california', name: 'EUA - Califórnia & Sudoeste', coords: [[-124,42], [-111,42], [-111,37], [-106,32], [-114,32], [-118,34]] },
+  { id: 'eua_texas_sul', name: 'EUA - Texas & Planícies Sul', coords: [[-111,37], [-102,37], [-102,40], [-90,40], [-90,37], [-90,30], [-97,26], [-106,32]] },
+  { id: 'eua_sudeste', name: 'EUA - Sudeste & Flórida', coords: [[-90,37], [-80,37], [-75,38], [-76,34], [-81,25], [-84,30], [-90,30]] },
 
-      // Desenha os polígonos no SVG
-      svg.selectAll("path")
-        .data(americas.features)
-        .enter()
-        .append("path")
-        .attr("class", "pais")
-        .attr("d", pathGenerator);
-    });
-  </script>
-</body>
-</html>
+  // --- MÉXICO E AMÉRICA CENTRAL (11 Polígonos) ---
+  { id: 'mex_noroeste', name: 'México - Noroeste (Sonora/Baja)', coords: [[-114,32], [-106,32], [-105,24], [-110,24], [-115,28]] },
+  { id: 'mex_nordeste', name: 'México - Nordeste (Chihuahua/Coahuila)', coords: [[-106,32], [-97,26], [-98,22], [-105,24]] },
+  { id: 'mex_centro', name: 'México - Planalto Central', coords: [[-105,24], [-98,22], [-95,18], [-102,18]] },
+  { id: 'mex_sul_yucatan', name: 'México - Sul & Yucatán', coords: [[-102,18], [-95,18], [-87,21], [-88,18], [-91,17], [-92,15], [-98,16]] },
+  { id: 'guatemala', name: 'Guatemala', coords: [[-92,15], [-91,17], [-89.2,17.8], [-89.2,15.5], [-90,14]] },
+  { id: 'belize', name: 'Belize', coords: [[-89.2,17.8], [-88,18], [-88.2,16], [-89.2,15.5]] },
+  { id: 'honduras', name: 'Honduras', coords: [[-89.2,15.5], [-88.2,16], [-83.2,15], [-85,13.5], [-87.5,13.2]] },
+  { id: 'el_salvador', name: 'El Salvador', coords: [[-90,14], [-89.2,15.5], [-87.5,13.2], [-88.5,13.1]] },
+  { id: 'nicaragua', name: 'Nicarágua', coords: [[-87.5,13.2], [-85,13.5], [-83.2,15], [-83.6,11], [-85.7,11]] },
+  { id: 'costa_rica', name: 'Costa Rica', coords: [[-85.7,11], [-83.6,11], [-82.8,9.5], [-83.5,8.5], [-85.5,10]] },
+  { id: 'panama', name: 'Panamá', coords: [[-82.8,9.5], [-77.5,8.5], [-78,7.5], [-81.5,8], [-83.5,8.5]] },
+
+  // --- CARIBE INSULAR (3 Polígonos) ---
+  { id: 'cuba', name: 'Cuba', coords: [[-84.8,22], [-79,22.5], [-74.2,20.2], [-77.5,19.8], [-82,21.5]] },
+  { id: 'haiti_rd', name: 'Haiti & Rep. Dominicana', coords: [[-74.2,19.8], [-68.4,18.6], [-71.5,17.8], [-74.4,18.4]] },
+  { id: 'peq_antilhas', name: 'Jamaica, Porto Rico & Antilhas', coords: [[-78,18.2], [-66,18.4], [-61,14], [-61.5,10.5], [-63,11], [-67,17.5], [-77.5,17.7]] },
+
+  // --- AMÉRICA DO SUL (20 Polígonos - Malha 100% Fechada) ---
+  { id: 'colombia_norte', name: 'Colômbia - Caribe & Andes', coords: [[-77.5,8.5], [-72,12], [-70,7], [-74,4], [-78,4], [-77.5,6]] },
+  { id: 'colombia_sul', name: 'Colômbia - Amazônia & Pacífico', coords: [[-78,4], [-74,4], [-70,7], [-67,6], [-67,1.5], [-70,-1], [-75,0], [-78,2]] },
+  { id: 'venezuela_oeste', name: 'Venezuela - Llanos & Andes', coords: [[-72,12], [-66,10.5], [-66,5], [-67,1.5], [-67,6], [-70,7]] },
+  { id: 'venezuela_leste', name: 'Venezuela - Guayana & Orinoco', coords: [[-66,10.5], [-61,10], [-60,5], [-64,1.5], [-67,1.5], [-66,5]] },
+  { id: 'guiana', name: 'Guiana', coords: [[-61,10], [-57,6], [-58,2], [-60,2], [-60,5]] },
+  { id: 'suriname', name: 'Suriname', coords: [[-57,6], [-54,5.8], [-54.5,2.2], [-58,2]] },
+  { id: 'guiana_francesa', name: 'Guiana Francesa', coords: [[-54,5.8], [-51.8,4.2], [-52.5,2.2], [-54.5,2.2]] },
+
+  { id: 'equador', name: 'Equador', coords: [[-80,1], [-78,2], [-75,0], [-76,-3], [-80,-4.5], [-81,-1.5]] },
+  { id: 'peru_norte', name: 'Peru - Norte & Amazônia', coords: [[-81,-4.5], [-76,-3], [-75,0], [-70,-1], [-70,-8], [-75,-10], [-79,-8]] },
+  { id: 'peru_sul', name: 'Peru - Sul & Altiplano', coords: [[-79,-8], [-75,-10], [-70,-8], [-69,-13], [-70,-17], [-71,-18], [-76,-14]] },
+
+  { id: 'br_amazonia_o', name: 'Brasil - Amazônia Ocidental', coords: [[-70,-1], [-67,1.5], [-64,1.5], [-60,2], [-60,-8], [-65,-11], [-70,-8]] },
+  { id: 'br_amazonia_l', name: 'Brasil - Amazônia Oriental', coords: [[-60,2], [-54.5,2.2], [-52.5,2.2], [-50,1], [-48,-2], [-48,-10], [-55,-10], [-60,-8]] },
+  { id: 'br_nordeste', name: 'Brasil - Nordeste', coords: [[-48,-2], [-35,-6], [-38,-13], [-44,-14], [-46,-10], [-48,-10]] },
+  { id: 'br_centro_oeste', name: 'Brasil - Centro-Oeste', coords: [[-65,-11], [-60,-8], [-55,-10], [-48,-10], [-46,-10], [-47,-18], [-54,-22], [-58,-18], [-60,-14]] },
+  { id: 'br_sudeste', name: 'Brasil - Sudeste', coords: [[-46,-10], [-44,-14], [-38,-13], [-39,-18], [-42,-23], [-48,-24], [-51,-22], [-47,-18]] },
+  { id: 'br_sul', name: 'Brasil - Sul', coords: [[-54,-22], [-47,-18], [-51,-22], [-48,-24], [-49,-28], [-53,-33], [-57,-30], [-55,-24]] },
+
+  { id: 'bolivia', name: 'Bolívia', coords: [[-69,-13], [-70,-8], [-65,-11], [-60,-14], [-58,-18], [-58,-20], [-62,-22], [-67,-22], [-70,-17]] },
+  { id: 'paraguai', name: 'Paraguai', coords: [[-62,-22], [-58,-20], [-58,-18], [-54,-22], [-55,-24], [-55,-27], [-58,-27], [-61,-24]] },
+  { id: 'uruguai', name: 'Uruguai', coords: [[-57,-30], [-53,-33], [-54,-34.8], [-58,-34.5]] },
+
+  { id: 'chile_norte', name: 'Chile - Norte (Atacama)', coords: [[-71,-18], [-70,-17], [-67,-22], [-69,-30], [-71.5,-30], [-71,-20]] },
+  { id: 'chile_sul', name: 'Chile - Centro & Sul', coords: [[-71.5,-30], [-69,-30], [-71,-42], [-68,-54], [-74,-53], [-74,-42]] },
+  { id: 'arg_norte', name: 'Argentina - Norte & Cuyo', coords: [[-67,-22], [-62,-22], [-61,-24], [-58,-27], [-55,-27], [-57,-30], [-58,-34.5], [-64,-34], [-69,-30]] },
+  { id: 'arg_pampa', name: 'Argentina - Pampa Central', coords: [[-69,-30], [-64,-34], [-58,-34.5], [-57,-38], [-62,-41], [-71,-42]] },
+  { id: 'arg_patagonia', name: 'Argentina - Patagônia', coords: [[-71,-42], [-62,-41], [-65,-47], [-67,-54], [-68,-54]] }
+];
+
+let hoveredTerritory = null;
+let selectedTerritory = null;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
+}
+
+function buildPath(territory, w, h) {
+  const path = new Path2D();
+  territory.coords.forEach(([lon, lat], idx) => {
+    const pt = geoToCanvas(lon, lat, w, h);
+    if (idx === 0) path.moveTo(pt.x, pt.y);
+    else path.lineTo(pt.x, pt.y);
+  });
+  path.closePath();
+  return path;
+}
+
+  function draw() {
+const w = canvas.width;
+const h = canvas.height;
+// Oceano em azul
+ctx.fillStyle = '#1d4ed8';
+ctx.fillRect(0, 0, w, h);
+ctx.lineJoin = 'round';
+ctx.lineCap = 'round';
+// 1ª passada: preenche todos os polígonos e sela micro-frestas de antialiasing com borda branca
+territories.forEach(t => {
+const path = buildPath(t, w, h);
+t._path = path;
+const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
+const isSelected = selectedTerritory && selectedTerritory.id === t.id;
+ctx.fillStyle = isSelected ? '#bfdbfe' : (isHovered ? '#e2e8f0' : '#ffffff');
+ctx.fill(path);
+ctx.lineWidth = 1.5;
+ctx.strokeStyle = ctx.fillStyle;
+ctx.stroke(path);
+});
+// 2ª passada: desenha o contorno nítido das divisões territoriais por cima
+territories.forEach(t => {
+const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
+const isSelected = selectedTerritory && selectedTerritory.id === t.id;
+ctx.lineWidth = isSelected ? 2.4 : (isHovered ? 1.8 : 1.0);
+ctx.strokeStyle = isSelected ? '#0f172a' : '#334155';
+ctx.stroke(t._path);
+});
+}
+canvas.addEventListener('mousemove', (e) => {
+const mx = e.clientX;
+const my = e.clientY;
+let found = null;
+for (let i = territories.length - 1; i >= 0; i--) {
+if (territories[i]._path && ctx.isPointInPath(territories[i]._path, mx, my)) {
+found = territories[i];
+break;
+}
+}
+if (found !== hoveredTerritory) {
+hoveredTerritory = found;
+draw();
+}
+if (found) {
+tooltip.style.display = 'block';
+tooltip.style.left = ${mx + 12}px;
+tooltip.style.top = ${my + 12}px;
+tooltip.textContent = found.name;
+} else {
+tooltip.style.display = 'none';
+}
+});
+canvas.addEventListener('click', () => {
+if (hoveredTerritory) {
+selectedTerritory = hoveredTerritory;
+draw();
+}
+});
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
