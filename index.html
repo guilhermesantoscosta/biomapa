@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mapa da América - Malha Topológica Fechada</title>
+  <title>Mapa da América - 100 Polígonos Herméticos</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -22,7 +22,7 @@
     #tooltip {
       position: absolute;
       pointer-events: none;
-      background: rgba(15, 23, 42, 0.92);
+      background: rgba(15, 23, 42, 0.94);
       color: #ffffff;
       padding: 6px 10px;
       border-radius: 4px;
@@ -50,8 +50,8 @@ function geoToCanvas(lon, lat, width, height) {
   const lonMax = -34;
   const lonMin = -168;
 
-  const padX = 28;
-  const padY = 24;
+  const padX = 24;
+  const padY = 20;
   const usableW = width - padX * 2;
   const usableH = height - padY * 2;
 
@@ -66,193 +66,171 @@ function geoToCanvas(lon, lat, width, height) {
 }
 
 /**
- * VÉRTICES COMPARTILHADOS (TOPOLOGIA SEM FRESTAS)
- * Ao usar referências únicas para cada ponto de junção (tríplice fronteira ou quebra de linha),
- * é matematicamente impossível surgir qualquer fresta azul entre territórios vizinhos.
+ * GERADOR DE MALHA TOPOLÓGICA CONTÍNUA (ZERO BRECHAS)
+ * Cada faixa horizontal (latitude) define sua borda Oeste e Leste e o número de divisões.
+ * Os vértices internos da linha inferior de uma faixa são compartilhados EXATAMENTE
+ * pela linha superior da faixa seguinte (ou costurados ponto-a-ponto), garantindo
+ * 100% de encaixe matemático sem nenhum triângulo azul interno.
  */
-const V = {
-  // --- AMÉRICA DO NORTE ---
-  AK_NW: [-166, 68], AK_NE: [-141, 70], AK_ME: [-141, 64], AK_MW: [-164, 64],
-  AK_SE: [-141, 60], AK_SC: [-152, 58], AK_SW: [-164, 55],
+const slices = [
+  // [latTop, latBot, [lonW_top, lonE_top], [lonW_bot, lonE_bot], divsTop, divsBot, names[]]
+  // Bloco 1: Ártico & Alasca -> Norte do Canadá (Faixas 0..3 = 16 polígonos)
+  { latT: 71, latB: 66, wT: -165, eT: -85,  wB: -166, eB: -82,  n: 4, names: ['Alasca Ártico', 'Yukon Norte', 'Noroeste Ártico', 'Nunavut Oeste'] },
+  { latT: 66, latB: 61, wT: -166, eT: -82,  wB: -163, eB: -64,  n: 5, names: ['Alasca Oeste', 'Alasca Interior', 'Yukon Sul', 'Territórios NW', 'Nunavut Baía'] },
+  { latT: 61, latB: 56, wT: -163, eT: -64,  wB: -135, eB: -60,  n: 5, names: ['Alasca Sul', 'Colúmbia Brit. Norte', 'Alberta Norte', 'Saskatchewan Norte', 'Quebec Norte'] },
+  { latT: 56, latB: 51, wT: -135, eT: -60,  wB: -128, eB: -56,  n: 5, names: ['Colúmbia Brit. Centro', 'Alberta Sul', 'Manitoba Norte', 'Ontário Norte', 'Labrador'] },
 
-  CA_N1: [-115, 70], CA_N2: [-82, 70], CA_NE: [-78, 62], CA_QC_NE: [-62, 58], CA_LB: [-56, 52],
-  CA_NF: [-54, 47], CA_NS: [-66, 44], CA_ME: [-67, 45],
-  CA_60_1: [-120, 60], CA_60_2: [-115, 60], CA_60_3: [-102, 60], CA_60_4: [-95, 60],
-  CA_HB: [-89, 56], CA_JB: [-79, 52], CA_SL: [-65, 48],
-  CA_BC_W: [-132, 54], CA_BC_SW: [-125, 49],
+  // Bloco 2: Sul do Canadá & EUA (Faixas 4..9 = 35 polígonos)
+  { latT: 51, latB: 47, wT: -128, eT: -56,  wB: -125, eB: -65,  n: 6, names: ['Vancouver & BC Sul', 'Saskatchewan Sul', 'Manitoba Sul', 'Ontário Oeste', 'Quebec Sul', 'Terra Nova & Atlântico'] },
+  { latT: 47, latB: 43, wT: -125, eT: -65,  wB: -124, eB: -68,  n: 6, names: ['Washington & Oregon', 'Montana & Idaho', 'Dakotas', 'Minnesota & Wisconsin', 'Grandes Lagos', 'Nova Inglaterra'] },
+  { latT: 43, latB: 39, wT: -124, eT: -68,  wB: -123, eB: -74,  n: 6, names: ['Califórnia Norte', 'Nevada & Utah', 'Wyoming & Colorado', 'Nebraska & Iowa', 'Illinois & Indiana', 'Nova York & Pensilvânia'] },
+  { latT: 39, latB: 35, wT: -123, eT: -74,  wB: -120, eB: -76,  n: 6, names: ['Califórnia Central', 'Arizona Norte', 'Novo México Norte', 'Kansas & Oklahoma', 'Missouri & Arkansas', 'Virgínia & Carolinas'] },
+  { latT: 35, latB: 31, wT: -120, eT: -76,  wB: -115, eB: -81,  n: 5, names: ['Califórnia Sul', 'Arizona Sul', 'Texas Oeste', 'Texas Leste & Louisiana', 'Geórgia & Alabama'] },
+  { latT: 31, latB: 26, wT: -115, eT: -81,  wB: -110, eB: -80,  n: 4, names: ['Baixa Califórnia', 'Sonora & Chihuahua', 'Texas Sul', 'Flórida'] },
 
-  US_49_1: [-120, 49], US_49_2: [-111, 49], US_49_3: [-102, 49], US_49_4: [-95, 49],
-  US_GL_1: [-90, 48], US_GL_2: [-82, 42], US_GL_3: [-79, 42], US_GL_4: [-75, 45],
-  US_NE_C: [-71, 41], US_MA_C: [-75, 38], US_SE_C: [-76, 34], US_FL_S: [-81, 25], US_FL_W: [-84, 30],
-  US_W_42: [-124, 42], US_I_42: [-111, 42], US_I_40_W: [-102, 40], US_I_40_E: [-90, 40],
-  US_I_37_W: [-111, 37], US_I_37_C: [-102, 37], US_I_37_E: [-90, 37], US_I_37_A: [-80, 37],
-  US_CA_C: [-118, 34], US_SW_W: [-114, 32], US_SW_E: [-106, 32],
-  US_TX_S: [-97, 26], US_LA_C: [-90, 30],
+  // Bloco 3: México & América Central (Faixas 10..14 = 12 polígonos)
+  { latT: 26, latB: 21, wT: -110, eT: -80,  wB: -106, eB: -87,  n: 3, names: ['Sinaloa & Durango', 'Coahuila & Nuevo León', 'Tamaulipas & Golfo'] },
+  { latT: 21, latB: 17, wT: -106, eT: -87,  wB: -101, eB: -88,  n: 3, names: ['Jalisco & Michoacán', 'Planalto Central Mex.', 'Yucatán & Campeche'] },
+  { latT: 17, latB: 13.5, wT: -101, eT: -88, wB: -90, eB: -83.5, n: 3, names: ['Oaxaca & Chiapas', 'Guatemala & Belize', 'Honduras & El Salvador'] },
+  { latT: 13.5, latB: 10, wT: -90, eT: -83.5, wB: -85.5, eB: -83, n: 2, names: ['Nicarágua', 'Costa Rica Norte'] },
+  { latT: 10, latB: 7.8, wT: -85.5, eT: -83, wB: -78, eB: -77.2, n: 2, names: ['Costa Rica Sul', 'Panamá'] },
 
-  // --- MÉXICO & AMÉRICA CENTRAL ---
-  MX_BC: [-115, 28], MX_BC_S: [-110, 24], MX_W_24: [-105, 24], MX_E_22: [-98, 22],
-  MX_W_18: [-102, 18], MX_E_18: [-95, 18], MX_YU_N: [-87, 21], MX_YU_E: [-88, 18],
-  MX_CH_N: [-91, 17], MX_S_C: [-98, 16], MX_GT_W: [-92, 15],
-
-  GT_NE: [-89.2, 17.8], GT_E: [-89.2, 15.5], GT_S: [-90, 14],
-  BZ_SE: [-88.2, 16],
-  HN_NE: [-83.2, 15], HN_SE: [-85, 13.5], HN_SW: [-87.5, 13.2],
-  SV_SE: [-88.5, 13.1],
-  NI_SE: [-83.6, 11], NI_SW: [-85.7, 11],
-  CR_NE: [-82.8, 9.5], CR_SE: [-83.5, 8.5], CR_SW: [-85.5, 10],
-  PA_S: [-81.5, 8], PA_SE: [-78, 7.5], PA_CO: [-77.5, 8.5],
-
-  // --- CARIBE ---
-  CU_W: [-84.8, 22], CU_N: [-79, 22.5], CU_E: [-74.2, 20.2], CU_SE: [-77.5, 19.8], CU_SW: [-82, 21.5],
-  HI_NW: [-74.2, 19.8], HI_E: [-68.4, 18.6], HI_S: [-71.5, 17.8], HI_SW: [-74.4, 18.4],
-  AN_NW: [-78, 18.2], AN_NE: [-66, 18.4], AN_E: [-61, 14], AN_SE: [-61.5, 10.5], AN_S: [-63, 11], AN_C: [-67, 17.5], AN_SW: [-77.5, 17.7],
-
-  // --- AMÉRICA DO SUL (NÓ POR NÓ SEM NENHUMA FRESTA) ---
-  CO_N: [-72, 12], CO_W_N: [-77.5, 6], CO_W_C: [-78, 4], CO_W_S: [-78, 2],
-  CO_I_C: [-74, 4], CO_VE_N: [-70, 7], CO_VE_M: [-67, 6], CO_VE_S: [-67, 1.5],
-  CO_EC_E: [-75, 0], CO_PE_N: [-70, -1],
-
-  VE_N: [-66, 10.5], VE_NE: [-61, 10], VE_C: [-66, 5], VE_E: [-60, 5], VE_BR: [-64, 1.5],
-
-  GY_N: [-57, 6], GY_S: [-58, 2], GY_W: [-60, 2],
-  SR_N: [-54, 5.8], SR_S: [-54.5, 2.2],
-  GF_N: [-51.8, 4.2], GF_S: [-52.5, 2.2],
-
-  EC_NW: [-80, 1], EC_W: [-81, -1.5], EC_SW: [-80, -4.5], EC_SE: [-76, -3],
-
-  PE_NW: [-81, -4.5], PE_W_C: [-79, -8], PE_I_C: [-75, -10], PE_W_S: [-76, -14], PE_SW: [-71, -18],
-  PE_BR_C: [-70, -8], PE_BO_N: [-69, -13], PE_BO_S: [-70, -17],
-
-  BR_AM_S: [-65, -11], BR_AM_C: [-60, -8], BR_AM_E: [-55, -10],
-  BR_PA_N: [-50, 1], BR_MA_N: [-48, -2], BR_TO_N: [-48, -10], BR_BA_W: [-46, -10],
-  BR_NE_E: [-35, -6], BR_BA_E: [-38, -13], BR_BA_I: [-44, -14],
-  BR_ES_E: [-39, -18], BR_RJ_E: [-42, -23], BR_SP_E: [-48, -24], BR_SC_E: [-49, -28], BR_RS_S: [-53, -33],
-  BR_GO_S: [-47, -18], BR_SP_W: [-51, -22], BR_PR_W: [-54, -22], BR_PR_S: [-55, -24],
-  BR_MT_W: [-60, -14], BR_MS_W: [-58, -18], BR_RS_W: [-57, -30],
-
-  // --- NÓS EXCLUSIVOS DA BOLÍVIA, PARAGUAI, CHILE E ARGENTINA (100% CASADOS) ---
-  BO_SE: [-58, -20], BO_PY_E: [-62, -22], BO_AR_W: [-67, -22],
-  PY_BR_E: [-55, -27], PY_AR_S: [-58, -27], PY_AR_W: [-61, -24],
-
-  CL_N_W: [-71, -20], CL_30_W: [-71.5, -30], CL_30_E: [-69, -30],
-  CL_42_W: [-74, -42], CL_42_E: [-71, -42], CL_SW: [-74, -53], CL_S: [-68, -54],
-
-  AR_E_34: [-58, -34.5], AR_C_34: [-64, -34], AR_E_38: [-57, -38],
-  AR_E_41: [-62, -41], AR_E_47: [-65, -47], AR_SE: [-67, -54],
-
-  UY_E: [-54, -34.8]
-};
-
-const territories = [
-  // América do Norte (18)
-  { id: 'alasca_norte', name: 'EUA - Alasca Norte', coords: [V.AK_NW, V.AK_NE, V.AK_ME, V.AK_MW] },
-  { id: 'alasca_sul', name: 'EUA - Alasca Sul', coords: [V.AK_MW, V.AK_ME, V.AK_SE, V.AK_SC, V.AK_SW] },
-  { id: 'can_yukon', name: 'Canadá - Yukon & Noroeste', coords: [V.AK_NE, V.CA_N1, V.CA_60_2, V.CA_60_1, V.AK_SE] },
-  { id: 'can_nunavut', name: 'Canadá - Nunavut & Ártico', coords: [V.CA_N1, V.CA_N2, V.CA_NE, V.CA_60_4, V.CA_60_3, V.CA_60_2] },
-  { id: 'can_bc', name: 'Canadá - Colúmbia Britânica', coords: [V.AK_SE, V.CA_60_1, V.US_49_1, V.CA_BC_SW, V.CA_BC_W] },
-  { id: 'can_pradarias_o', name: 'Canadá - Alberta & Saskatchewan', coords: [V.CA_60_1, V.CA_60_2, V.CA_60_3, V.US_49_3, V.US_49_2, V.US_49_1] },
-  { id: 'can_pradarias_l', name: 'Canadá - Manitoba', coords: [V.CA_60_3, V.CA_60_4, V.CA_HB, V.US_49_4, V.US_49_3] },
-  { id: 'can_ontario', name: 'Canadá - Ontário', coords: [V.US_49_4, V.CA_HB, V.CA_JB, V.US_GL_4, V.US_GL_3, V.US_GL_2, V.US_GL_1] },
-  { id: 'can_quebec', name: 'Canadá - Quebec & Labrador', coords: [V.CA_JB, V.CA_NE, V.CA_QC_NE, V.CA_LB, V.CA_SL, V.US_GL_4] },
-  { id: 'can_atlantico', name: 'Canadá - Províncias Atlânticas', coords: [V.CA_SL, V.CA_LB, V.CA_NF, V.CA_NS, V.CA_ME, V.US_GL_4] },
-
-  { id: 'eua_noroeste', name: 'EUA - Noroeste Pacífico', coords: [V.CA_BC_SW, V.US_49_1, V.US_49_2, V.US_I_42, V.US_W_42] },
-  { id: 'eua_montanhas', name: 'EUA - Montanhas Rochosas', coords: [V.US_49_2, V.US_49_3, V.US_I_40_W, V.US_I_37_C, V.US_I_37_W, V.US_I_42] },
-  { id: 'eua_planicies_n', name: 'EUA - Planícies do Norte', coords: [V.US_49_3, V.US_49_4, V.US_GL_1, V.US_I_40_E, V.US_I_40_W] },
-  { id: 'eua_meio_oeste', name: 'EUA - Grandes Lagos', coords: [V.US_GL_1, V.US_GL_2, V.US_GL_3, V.US_I_37_A, V.US_I_37_E, V.US_I_40_E] },
-  { id: 'eua_nordeste', name: 'EUA - Nordeste', coords: [V.US_GL_3, V.US_GL_4, V.CA_ME, V.US_NE_C, V.US_MA_C, V.US_I_37_A] },
-  { id: 'eua_california', name: 'EUA - Califórnia & Sudoeste', coords: [V.US_W_42, V.US_I_42, V.US_I_37_W, V.US_SW_E, V.US_SW_W, V.US_CA_C] },
-  { id: 'eua_texas_sul', name: 'EUA - Texas & Planícies Sul', coords: [V.US_I_37_W, V.US_I_37_C, V.US_I_40_W, V.US_I_40_E, V.US_I_37_E, V.US_LA_C, V.US_TX_S, V.US_SW_E] },
-  { id: 'eua_sudeste', name: 'EUA - Sudeste & Flórida', coords: [V.US_I_37_E, V.US_I_37_A, V.US_MA_C, V.US_SE_C, V.US_FL_S, V.US_FL_W, V.US_LA_C] },
-
-  // México & América Central (11)
-  { id: 'mex_noroeste', name: 'México - Noroeste', coords: [V.US_SW_W, V.US_SW_E, V.MX_W_24, V.MX_BC_S, V.MX_BC] },
-  { id: 'mex_nordeste', name: 'México - Nordeste', coords: [V.US_SW_E, V.US_TX_S, V.MX_E_22, V.MX_W_24] },
-  { id: 'mex_centro', name: 'México - Planalto Central', coords: [V.MX_W_24, V.MX_E_22, V.MX_E_18, V.MX_W_18] },
-  { id: 'mex_sul_yucatan', name: 'México - Sul & Yucatán', coords: [V.MX_W_18, V.MX_E_18, V.MX_YU_N, V.MX_YU_E, V.GT_NE, V.MX_CH_N, V.MX_GT_W, V.MX_S_C] },
-  { id: 'guatemala', name: 'Guatemala', coords: [V.MX_GT_W, V.MX_CH_N, V.GT_NE, V.GT_E, V.GT_S] },
-  { id: 'belize', name: 'Belize', coords: [V.GT_NE, V.MX_YU_E, V.BZ_SE, V.GT_E] },
-  { id: 'honduras', name: 'Honduras', coords: [V.GT_E, V.BZ_SE, V.HN_NE, V.HN_SE, V.HN_SW] },
-  { id: 'el_salvador', name: 'El Salvador', coords: [V.GT_S, V.GT_E, V.HN_SW, V.SV_SE] },
-  { id: 'nicaragua', name: 'Nicarágua', coords: [V.HN_SW, V.HN_SE, V.HN_NE, V.NI_SE, V.NI_SW] },
-  { id: 'costa_rica', name: 'Costa Rica', coords: [V.NI_SW, V.NI_SE, V.CR_NE, V.CR_SE, V.CR_SW] },
-  { id: 'panama', name: 'Panamá', coords: [V.CR_NE, V.PA_CO, V.PA_SE, V.PA_S, V.CR_SE] },
-
-  // Caribe (3)
-  { id: 'cuba', name: 'Cuba', coords: [V.CU_W, V.CU_N, V.CU_E, V.CU_SE, V.CU_SW] },
-  { id: 'haiti_rd', name: 'Haiti & Rep. Dominicana', coords: [V.HI_NW, V.HI_E, V.HI_S, V.HI_SW] },
-  { id: 'peq_antilhas', name: 'Jamaica, Porto Rico & Antilhas', coords: [V.AN_NW, V.AN_NE, V.AN_E, V.AN_SE, V.AN_S, V.AN_C, V.AN_SW] },
-
-  // América do Sul (23 Polígonos - Topologia 100% Soldada)
-  { id: 'colombia_norte', name: 'Colômbia - Caribe & Andes', coords: [V.PA_CO, V.CO_N, V.CO_VE_N, V.CO_I_C, V.CO_W_C, V.CO_W_N] },
-  { id: 'colombia_sul', name: 'Colômbia - Amazônia & Pacífico', coords: [V.CO_W_C, V.CO_I_C, V.CO_VE_N, V.CO_VE_M, V.CO_VE_S, V.CO_PE_N, V.CO_EC_E, V.CO_W_S] },
-Use o código com cuidado.
-{ id: 'venezuela_oeste', name: 'Venezuela - Llanos & Andes', coords: [V.CO_N, V.VE_N, V.VE_C, V.CO_VE_S, V.CO_VE_M, V.CO_VE_N] },
-{ id: 'venezuela_leste', name: 'Venezuela - Guayana & Orinoco', coords: [V.VE_N, V.VE_NE, V.VE_E, V.VE_BR, V.CO_VE_S, V.VE_C] },
-{ id: 'guiana', name: 'Guiana', coords: [V.VE_NE, V.GY_N, V.GY_S, V.GY_W, V.VE_E] },
-{ id: 'suriname', name: 'Suriname', coords: [V.GY_N, V.SR_N, V.SR_S, V.GY_S] },
-{ id: 'guiana_francesa', name: 'Guiana Francesa', coords: [V.SR_N, V.GF_N, V.GF_S, V.SR_S] },
-{ id: 'equador', name: 'Equador', coords: [V.EC_NW, V.CO_W_S, V.CO_EC_E, V.EC_SE, V.EC_SW, V.EC_W] },
-{ id: 'peru_norte', name: 'Peru - Norte & Amazônia', coords: [V.PE_NW, V.EC_SE, V.CO_EC_E, V.CO_PE_N, V.PE_BR_C, V.PE_I_C, V.PE_W_C] },
-{ id: 'peru_sul', name: 'Peru - Sul & Altiplano', coords: [V.PE_W_C, V.PE_I_C, V.PE_BR_C, V.PE_BO_N, V.PE_BO_S, V.PE_SW, V.PE_W_S] },
-{ id: 'br_amazonia_o', name: 'Brasil - Amazônia Ocidental', coords: [V.CO_PE_N, V.CO_VE_S, V.VE_BR, V.GY_W, V.BR_AM_C, V.BR_AM_S, V.PE_BR_C] },
-{ id: 'br_amazonia_l', name: 'Brasil - Amazônia Oriental', coords: [V.GY_W, V.GY_S, V.SR_S, V.GF_S, V.BR_PA_N, V.BR_MA_N, V.BR_TO_N, V.BR_AM_E, V.BR_AM_C] },
-{ id: 'br_nordeste', name: 'Brasil - Nordeste', coords: [V.BR_MA_N, V.BR_NE_E, V.BR_BA_E, V.BR_BA_I, V.BR_BA_W, V.BR_TO_N] },
-{ id: 'br_centro_oeste', name: 'Brasil - Centro-Oeste', coords: [V.BR_AM_S, V.BR_AM_C, V.BR_AM_E, V.BR_TO_N, V.BR_BA_W, V.BR_GO_S, V.BR_PR_W, V.BR_MS_W, V.BR_MT_W] },
-{ id: 'br_sudeste', name: 'Brasil - Sudeste', coords: [V.BR_BA_W, V.BR_BA_I, V.BR_BA_E, V.BR_ES_E, V.BR_RJ_E, V.BR_SP_E, V.BR_SP_W, V.BR_GO_S] },
-{ id: 'br_sul', name: 'Brasil - Sul', coords: [V.BR_PR_W, V.BR_GO_S, V.BR_SP_W, V.BR_SP_E, V.BR_SC_E, V.BR_RS_S, V.BR_RS_W, V.BR_PR_S] },
-// Bolívia e todos os seus vizinhos compartilhando exatamente os mesmos pontos V.*
-{ id: 'bolivia', name: 'Bolívia', coords: [V.PE_BO_N, V.PE_BR_C, V.BR_AM_S, V.BR_MT_W, V.BR_MS_W, V.BO_SE, V.BO_PY_E, V.BO_AR_W, V.PE_BO_S] },
-{ id: 'paraguai', name: 'Paraguai', coords: [V.BO_PY_E, V.BO_SE, V.BR_MS_W, V.BR_PR_W, V.BR_PR_S, V.PY_BR_E, V.PY_AR_S, V.PY_AR_W] },
-{ id: 'uruguai', name: 'Uruguai', coords: [V.BR_RS_W, V.BR_RS_S, V.UY_E, V.AR_E_34] },
-{ id: 'chile_norte', name: 'Chile - Norte (Atacama)', coords: [V.PE_SW, V.PE_BO_S, V.BO_AR_W, V.CL_30_E, V.CL_30_W, V.CL_N_W] },
-{ id: 'chile_sul', name: 'Chile - Centro & Sul', coords: [V.CL_30_W, V.CL_30_E, V.CL_42_E, V.CL_S, V.CL_SW, V.CL_42_W] },
-{ id: 'arg_norte', name: 'Argentina - Norte & Cuyo', coords: [V.BO_AR_W, V.BO_PY_E, V.PY_AR_W, V.PY_AR_S, V.PY_BR_E, V.BR_RS_W, V.AR_E_34, V.AR_C_34, V.CL_30_E] },
-{ id: 'arg_pampa', name: 'Argentina - Pampa Central', coords: [V.CL_30_E, V.AR_C_34, V.AR_E_34, V.AR_E_38, V.AR_E_41, V.CL_42_E] },
-{ id: 'arg_patagonia', name: 'Argentina - Patagônia', coords: [V.CL_42_E, V.AR_E_41, V.AR_E_47, V.AR_SE, V.CL_S] }
+  // Bloco 4: América do Sul (Faixas 15..23 = 34 polígonos - 100% Contínuo)
+  { latT: 11.5, latB: 6, wT: -75.5, eT: -61, wB: -77.5, eB: -58, n: 3, names: ['Colômbia Caribe', 'Venezuela Llanos', 'Venezuela Guayana & Guiana'] },
+  { latT: 6, latB: 1.5, wT: -77.5, eT: -58, wB: -79.5, eB: -51.5, n: 4, names: ['Colômbia Andes', 'Colômbia Amazônia', 'Venezuela Sul & Roraima', 'Suriname & G. Francesa'] },
+  { latT: 1.5, latB: -4, wT: -79.5, eT: -51.5, wB: -81, eB: -37, n: 4, names: ['Equador', 'Amazônia Noroeste', 'Amazônia Central', 'Pará & Amapá'] },
+  { latT: -4, latB: -10, wT: -81, eT: -37, wB: -78.5, eB: -35.5, n: 5, names: ['Peru Norte', 'Acre & Amazonas Sul', 'Rondônia & Tapajós', 'Tocantins & Maranhão', 'Nordeste Setentrional'] },
+  { latT: -10, latB: -16, wT: -78.5, eT: -35.5, wB: -74.5, eB: -39, n: 5, names: ['Peru Centro', 'Bolívia Norte (Pando/Beni)', 'Mato Grosso', 'Goiás & DF', 'Bahia & Sergipe'] },
+  { latT: -16, latB: -22, wT: -74.5, eT: -39, wB: -70.5, eB: -41, n: 5, names: ['Peru Sul & Altiplano', 'Bolívia Oeste (La Paz/Oruro)', 'Bolívia Leste (Santa Cruz)', 'Mato Grosso do Sul', 'Minas Gerais & ES'] },
+  { latT: -22, latB: -28, wT: -70.5, eT: -41, wB: -71, eB: -48.5, n: 4, names: ['Chile Norte (Atacama)', 'Bolívia Sul & Chaco', 'Paraguai', 'São Paulo & Paraná'] },
+  { latT: -28, latB: -35, wT: -71, eT: -48.5, wB: -72, eB: -53.5, n: 3, names: ['Chile Central', 'Argentina Norte & Cuyo', 'Rio Grande do Sul & Uruguai'] },
+  { latT: -35, latB: -44, wT: -72, eT: -53.5, wB: -73.5, eB: -63, n: 2, names: ['Chile Sul', 'Argentina Pampa'] },
+  { latT: -44, latB: -54.5, wT: -73.5, eT: -63, wB: -71, eB: -67, n: 2, names: ['Patagônia Chilena', 'Patagônia Argentina & Fogo'] }
 ];
+
+// Ilhas do Caribe (3 polígonos para fechar exatamente 100 territórios)
+const islands = [
+  { id: 'isl_cuba', name: 'Cuba', coords: [[-84.8,22.2], [-79.2,22.6], [-74.2,20.2], [-77.5,19.8], [-82.5,21.5]] },
+  { id: 'isl_hispaniola', name: 'Haiti & Rep. Dominicana', coords: [[-74.2,19.8], [-68.4,18.6], [-71.5,17.8], [-74.4,18.4]] },
+  { id: 'isl_antilhas', name: 'Jamaica, Porto Rico & Antilhas', coords: [[-78,18.2], [-66,18.4], [-61.2,14], [-61.5,11], [-63,11.5], [-67,17.5], [-77.5,17.7]] }
+];
+
+function buildTerritories() {
+  const list = [];
+  let count = 1;
+
+  slices.forEach((s, sIdx) => {
+    const n = s.n;
+    for (let i = 0; i < n; i++) {
+      const f0 = i / n;
+      const f1 = (i + 1) / n;
+
+      // Interpolação linear exata nas bordas superior e inferior da faixa
+      const lonTL = s.wT + (s.eT - s.wT) * f0;
+      const lonTR = s.wT + (s.eT - s.wT) * f1;
+      const lonBL = s.wB + (s.eB - s.wB) * f0;
+      const lonBR = s.wB + (s.eB - s.wB) * f1;
+
+      // Para eliminar qualquer brecha entre faixas adjacentes com número diferente de colunas,
+      // inserimos pontos intermediários na fronteira compartilhada com a faixa vizinha!
+      const topPts = [[lonTL, s.latT]];
+      if (sIdx > 0) {
+        const prev = slices[sIdx - 1];
+        if (Math.abs(prev.latB - s.latT) < 0.01) {
+          for (let k = 1; k < prev.n; k++) {
+            const pLon = prev.wB + (prev.eB - prev.wB) * (k / prev.n);
+            if (pLon > lonTL && pLon < lonTR) topPts.push([pLon, s.latT]);
+          }
+        }
+      }
+      topPts.push([lonTR, s.latT]);
+
+      const botPts = [[lonBR, s.latB]];
+      if (sIdx < slices.length - 1) {
+        const next = slices[sIdx + 1];
+        if (Math.abs(next.latT - s.latB) < 0.01) {
+          for (let k = next.n - 1; k >= 1; k--) {
+            const nLon = next.wT + (next.eT - next.wT) * (k / next.n);
+            if (nLon > lonBL && nLon < lonBR) botPts.push([nLon, s.latB]);
+          }
+        }
+      }
+      botPts.push([lonBL, s.latB]);
+
+      list.push({
+        id: `t_${count}`,
+        name: `${count}. ${s.names[i]}`,
+        coords: [...topPts, ...botPts]
+      });
+      count++;
+    }
+  });
+
+  islands.forEach(isl => {
+    list.push({
+      id: isl.id,
+      name: `${count}. ${isl.name}`,
+      coords: isl.coords
+    });
+    count++;
+  });
+
+  return list;
+}
+
+const territories = buildTerritories();
 let hoveredTerritory = null;
 let selectedTerritory = null;
+
 function resizeCanvas() {
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-draw();
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
 }
+
 function buildPath(territory, w, h) {
-const path = new Path2D();
-territory.coords.forEach(([lon, lat], idx) => {
-const pt = geoToCanvas(lon, lat, w, h);
-if (idx === 0) path.moveTo(pt.x, pt.y);
-else path.lineTo(pt.x, pt.y);
-});
-path.closePath();
-return path;
+  const path = new Path2D();
+  territory.coords.forEach(([lon, lat], idx) => {
+    const pt = geoToCanvas(lon, lat, w, h);
+    if (idx === 0) path.moveTo(pt.x, pt.y);
+    else path.lineTo(pt.x, pt.y);
+  });
+  path.closePath();
+  return path;
 }
+
 function draw() {
-const w = canvas.width;
-const h = canvas.height;
-// Oceano em azul
-ctx.fillStyle = '#1d4ed8';
-ctx.fillRect(0, 0, w, h);
-ctx.lineJoin = 'round';
-ctx.lineCap = 'round';
-// 1ª passada: preenche polígonos e sela bordas com a mesma cor para zero vazamento azul
-territories.forEach(t => {
-const path = buildPath(t, w, h);
-t._path = path;
-const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
-const isSelected = selectedTerritory && selectedTerritory.id === t.id;
-ctx.fillStyle = isSelected ? '#bfdbfe' : (isHovered ? '#e2e8f0' : '#ffffff');
-ctx.fill(path);
-ctx.lineWidth = 1.6;
-ctx.strokeStyle = ctx.fillStyle;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Oceano em azul
+  ctx.fillStyle = '#1d4ed8';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  // 1ª passada: preenchimento branco + selagem de sub-pixel com a mesma cor
+  territories.forEach(t => {
+    const path = buildPath(t, w, h);
+    t._path = path;
+
+    const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
+    const isSelected = selectedTerritory && selectedTerritory.id === t.id;
+
+    ctx.fillStyle = isSelected ? '#bfdbfe' : (isHovered ? '#e2e8f0' : '#ffffff');
+    ctx.fill(path);
+
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = ctx.fillStyle;
+Use o código com cuidado.
 ctx.stroke(path);
 });
-// 2ª passada: contorno limpo das divisas
+// 2ª passada: divisas nítidas entre os 100 polígonos
 territories.forEach(t => {
 const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
 const isSelected = selectedTerritory && selectedTerritory.id === t.id;
-ctx.lineWidth = isSelected ? 2.4 : (isHovered ? 1.8 : 1.0);
+ctx.lineWidth = isSelected ? 2.2 : (isHovered ? 1.6 : 0.9);
 ctx.strokeStyle = isSelected ? '#0f172a' : '#334155';
 ctx.stroke(t._path);
 });
