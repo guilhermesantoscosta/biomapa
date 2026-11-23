@@ -1,293 +1,288 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa da América do Sul - 150 Polígonos</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background-color: #121820;
-            color: #ffffff;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        canvas {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border-radius: 8px;
-            cursor: crosshair;
-            max-width: 100%;
-            height: auto;
-        }
-        .controls {
-            margin-top: 15px;
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        button {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background-color: #1d4ed8;
-        }
-        #info {
-            font-size: 14px;
-            color: #94a3b8;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa da América - 100 Polígonos Herméticos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #1d4ed8;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #toolbar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      background: rgba(15, 23, 42, 0.85);
+      color: #ffffff;
+      border: 1px solid #38bdf8;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0f172a;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.94);
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      border: 1px solid #38bdf8;
+      z-index: 20;
+    }
+  </style>
 </head>
 <body>
 
-    <canvas id="mapCanvas" width="700" height="850"></canvas>
-    
-    <div class="controls">
-        <button onclick="gerarMapa()">Gerar Novas Divisas (150 Polígonos)</button>
-        <span id="info">Passe o mouse sobre uma região para destacar</span>
-    </div>
+<div id="toolbar">
+  <button onclick="gerarMapa()">Resetar Mapa</button>
+</div>
 
-    <script>
-        const canvas = document.getElementById('mapCanvas');
-        const ctx = canvas.getContext('2d');
-        const infoText = document.getElementById('info');
+<canvas id="mapCanvas"></canvas>
+<div id="tooltip"></div>
 
-        // Coordenadas normalizadas (0 a 1) da silhueta da América do Sul
-        const southAmericaNormalized = [
-            [0.34, 0.06], [0.40, 0.05], [0.46, 0.07], [0.51, 0.10], [0.57, 0.12],
-            [0.62, 0.15], [0.68, 0.19], [0.74, 0.21], [0.80, 0.23], [0.85, 0.26],
-            [0.87, 0.30], [0.85, 0.35], [0.82, 0.40], [0.78, 0.44], [0.75, 0.48],
-            [0.71, 0.52], [0.66, 0.55], [0.62, 0.59], [0.59, 0.63], [0.56, 0.67],
-            [0.52, 0.71], [0.49, 0.76], [0.47, 0.81], [0.45, 0.86], [0.44, 0.91],
-            [0.46, 0.94], [0.42, 0.95], [0.39, 0.92], [0.38, 0.86], [0.37, 0.79],
-            [0.36, 0.72], [0.35, 0.65], [0.34, 0.58], [0.32, 0.52], [0.28, 0.46],
-            [0.23, 0.41], [0.19, 0.36], [0.18, 0.31], [0.21, 0.26], [0.24, 0.21],
-            [0.26, 0.15], [0.29, 0.10]
-        ];
+<script>
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
 
-        let poligonos = [];
-        let poligonoHover = -1;
+function geoToCanvas(lon, lat, width, height) {
+  const rad = Math.PI / 180;
+  const sMax = Math.sin(72 * rad);
+  const sMin = Math.sin(-56 * rad);
+  const lonMax = -34;
+  const lonMin = -168;
 
-        // Converte coordenadas normalizadas para pixels do Canvas
-        function getContinentPolygon() {
-            return southAmericaNormalized.map(([nx, ny]) => ({
-                x: nx * canvas.width,
-                y: ny * canvas.height
-            }));
+  const padX = 24;
+  const padY = 20;
+  const usableW = width - padX * 2;
+  const usableH = height - padY * 2;
+
+  const sLat = Math.sin(lat * rad);
+  const normX = (sMax - sLat) / (sMax - sMin);
+  const normY = (lonMax - lon) / (lonMax - lonMin);
+
+  return {
+    x: padX + normX * usableW,
+    y: padY + normY * usableH
+  };
+}
+
+const slices = [
+  { latT: 71, latB: 66, wT: -165, eT: -85,  wB: -166, eB: -82,  n: 4, names: ['Alasca Ártico', 'Yukon Norte', 'Noroeste Ártico', 'Nunavut Oeste'] },
+  { latT: 66, latB: 61, wT: -166, eT: -82,  wB: -163, eB: -64,  n: 5, names: ['Alasca Oeste', 'Alasca Interior', 'Yukon Sul', 'Territórios NW', 'Nunavut Baía'] },
+  { latT: 61, latB: 56, wT: -163, eT: -64,  wB: -135, eB: -60,  n: 5, names: ['Alasca Sul', 'Colúmbia Brit. Norte', 'Alberta Norte', 'Saskatchewan Norte', 'Quebec Norte'] },
+  { latT: 56, latB: 51, wT: -135, eT: -60,  wB: -128, eB: -56,  n: 5, names: ['Colúmbia Brit. Centro', 'Alberta Sul', 'Manitoba Norte', 'Ontário Norte', 'Labrador'] },
+
+  { latT: 51, latB: 47, wT: -128, eT: -56,  wB: -125, eB: -65,  n: 6, names: ['Vancouver & BC Sul', 'Saskatchewan Sul', 'Manitoba Sul', 'Ontário Oeste', 'Quebec Sul', 'Terra Nova & Atlântico'] },
+  { latT: 47, latB: 43, wT: -125, eT: -65,  wB: -124, eB: -68,  n: 6, names: ['Washington & Oregon', 'Montana & Idaho', 'Dakotas', 'Minnesota & Wisconsin', 'Grandes Lagos', 'Nova Inglaterra'] },
+  { latT: 43, latB: 39, wT: -124, eT: -68,  wB: -123, eB: -74,  n: 6, names: ['Califórnia Norte', 'Nevada & Utah', 'Wyoming & Colorado', 'Nebraska & Iowa', 'Illinois & Indiana', 'Nova York & Pensilvânia'] },
+  { latT: 39, latB: 35, wT: -123, eT: -74,  wB: -120, eB: -76,  n: 6, names: ['Califórnia Central', 'Arizona Norte', 'Novo México Norte', 'Kansas & Oklahoma', 'Missouri & Arkansas', 'Virgínia & Carolinas'] },
+  { latT: 35, latB: 31, wT: -120, eT: -76,  wB: -115, eB: -81,  n: 5, names: ['Califórnia Sul', 'Arizona Sul', 'Texas Oeste', 'Texas Leste & Louisiana', 'Geórgia & Alabama'] },
+  { latT: 31, latB: 26, wT: -115, eT: -81,  wB: -110, eB: -80,  n: 4, names: ['Baixa Califórnia', 'Sonora & Chihuahua', 'Texas Sul', 'Flórida'] },
+
+  { latT: 26, latB: 21, wT: -110, eT: -80,  wB: -106, eB: -87,  n: 3, names: ['Sinaloa & Durango', 'Coahuila & Nuevo León', 'Tamaulipas & Golfo'] },
+  { latT: 21, latB: 17, wT: -106, eT: -87,  wB: -101, eB: -88,  n: 3, names: ['Jalisco & Michoacán', 'Planalto Central Mex.', 'Yucatán & Campeche'] },
+  { latT: 17, latB: 13.5, wT: -101, eT: -88, wB: -90, eB: -83.5, n: 3, names: ['Oaxaca & Chiapas', 'Guatemala & Belize', 'Honduras & El Salvador'] },
+  { latT: 13.5, latB: 10, wT: -90, eT: -83.5, wB: -85.5, eB: -83, n: 2, names: ['Nicarágua', 'Costa Rica Norte'] },
+  { latT: 10, latB: 7.8, wT: -85.5, eT: -83, wB: -78, eB: -77.2, n: 2, names: ['Costa Rica Sul', 'Panamá'] },
+
+  { latT: 11.5, latB: 6, wT: -75.5, eT: -61, wB: -77.5, eB: -58, n: 3, names: ['Colômbia Caribe', 'Venezuela Llanos', 'Venezuela Guayana & Guiana'] },
+  { latT: 6, latB: 1.5, wT: -77.5, eT: -58, wB: -79.5, eB: -51.5, n: 4, names: ['Colômbia Andes', 'Colômbia Amazônia', 'Venezuela Sul & Roraima', 'Suriname & G. Francesa'] },
+  { latT: 1.5, latB: -4, wT: -79.5, eT: -51.5, wB: -81, eB: -37, n: 4, names: ['Equador', 'Amazônia Noroeste', 'Amazônia Central', 'Pará & Amapá'] },
+  { latT: -4, latB: -10, wT: -81, eT: -37, wB: -78.5, eB: -35.5, n: 5, names: ['Peru Norte', 'Acre & Amazonas Sul', 'Rondônia & Tapajós', 'Tocantins & Maranhão', 'Nordeste Setentrional'] },
+  { latT: -10, latB: -16, wT: -78.5, eT: -35.5, wB: -74.5, eB: -39, n: 5, names: ['Peru Centro', 'Bolívia Norte (Pando/Beni)', 'Mato Grosso', 'Goiás & DF', 'Bahia & Sergipe'] },
+  { latT: -16, latB: -22, wT: -74.5, eT: -39, wB: -70.5, eB: -41, n: 5, names: ['Peru Sul & Altiplano', 'Bolívia Oeste (La Paz/Oruro)', 'Bolívia Leste (Santa Cruz)', 'Mato Grosso do Sul', 'Minas Gerais & ES'] },
+  { latT: -22, latB: -28, wT: -70.5, eT: -41, wB: -71, eB: -48.5, n: 4, names: ['Chile Norte (Atacama)', 'Bolívia Sul & Chaco', 'Paraguai', 'São Paulo & Paraná'] },
+  { latT: -28, latB: -35, wT: -71, eT: -48.5, wB: -72, eB: -53.5, n: 3, names: ['Chile Central', 'Argentina Norte & Cuyo', 'Rio Grande do Sul & Uruguai'] },
+  { latT: -35, latB: -44, wT: -72, eT: -53.5, wB: -73.5, eB: -63, n: 2, names: ['Chile Sul', 'Argentina Pampa'] },
+  { latT: -44, latB: -54.5, wT: -73.5, eT: -63, wB: -71, eB: -67, n: 2, names: ['Patagônia Chilena', 'Patagônia Argentina & Fogo'] }
+];
+
+const islands = [
+  { id: 'isl_cuba', name: 'Cuba', coords: [[-84.8,22.2], [-79.2,22.6], [-74.2,20.2], [-77.5,19.8], [-82.5,21.5]] },
+  { id: 'isl_hispaniola', name: 'Haiti & Rep. Dominicana', coords: [[-74.2,19.8], [-68.4,18.6], [-71.5,17.8], [-74.4,18.4]] },
+  { id: 'isl_antilhas', name: 'Jamaica, Porto Rico & Antilhas', coords: [[-78,18.2], [-66,18.4], [-61.2,14], [-61.5,11], [-63,11.5], [-67,17.5], [-77.5,17.7]] }
+];
+
+let territories = [];
+let hoveredTerritory = null;
+let selectedTerritory = null;
+
+function buildTerritories() {
+  const list = [];
+  let count = 1;
+
+  slices.forEach((s, sIdx) => {
+    const n = s.n;
+    for (let i = 0; i < n; i++) {
+      const f0 = i / n;
+      const f1 = (i + 1) / n;
+
+      const lonTL = s.wT + (s.eT - s.wT) * f0;
+      const lonTR = s.wT + (s.eT - s.wT) * f1;
+      const lonBL = s.wB + (s.eB - s.wB) * f0;
+      const lonBR = s.wB + (s.eB - s.wB) * f1;
+
+      const topPts = [[lonTL, s.latT]];
+      if (sIdx > 0) {
+        const prev = slices[sIdx - 1];
+        if (Math.abs(prev.latB - s.latT) < 0.01) {
+          for (let k = 1; k < prev.n; k++) {
+            const pLon = prev.wB + (prev.eB - prev.wB) * (k / prev.n);
+            if (pLon > lonTL && pLon < lonTR) topPts.push([pLon, s.latT]);
+          }
         }
+      }
+      topPts.push([lonTR, s.latT]);
 
-        // Algoritmo de Sutherland-Hodgman para recortar um polígono por uma linha reta
-        function clipPolygon(poly, p1, p2, keepLeft) {
-            const newPoly = [];
-            const isInside = (p) => {
-                const cross = (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x);
-                return keepLeft ? cross >= 0 : cross <= 0;
-            };
-
-            const intersect = (a, b) => {
-                const dx1 = p2.x - p1.x, dy1 = p2.y - p1.y;
-                const dx2 = b.x - a.x, dy2 = b.y - a.y;
-                const denom = dx1 * dy2 - dy1 * dx2;
-                if (Math.abs(denom) < 1e-9) return a;
-                const t = ((a.x - p1.x) * dy2 - (a.y - p1.y) * dx2) / denom;
-                return { x: p1.x + t * dx1, y: p1.y + t * dy1 };
-            };
-
-            for (let i = 0; i < poly.length; i++) {
-                const curr = poly[i];
-                const prev = poly[(i + poly.length - 1) % poly.length];
-                const currIn = isInside(curr);
-                const prevIn = isInside(prev);
-
-                if (currIn) {
-                    if (!prevIn) newPoly.push(intersect(prev, curr));
-                    newPoly.push(curr);
-                } else if (prevIn) {
-                    newPoly.push(intersect(prev, curr));
-                }
-            }
-            return newPoly;
+      const botPts = [[lonBR, s.latB]];
+      if (sIdx < slices.length - 1) {
+        const next = slices[sIdx + 1];
+        if (Math.abs(next.latT - s.latB) < 0.01) {
+          for (let k = next.n - 1; k >= 1; k--) {
+            const nLon = next.wT + (next.eT - next.wT) * (k / next.n);
+            if (nLon > lonBL && nLon < lonBR) botPts.push([nLon, s.latB]);
+          }
         }
+      }
+      botPts.push([lonBL, s.latB]);
 
-        // Calcula a área aproximada de um polígono (para dividir sempre os maiores)
-        function polygonArea(poly) {
-            let area = 0;
-            for (let i = 0; i < poly.length; i++) {
-                const j = (i + 1) % poly.length;
-                area += poly[i].x * poly[j].y;
-                area -= poly[j].x * poly[i].y;
-            }
-            return Math.abs(area) / 2;
-        }
+      list.push({
+        id: `t_${count}`,
+        name: `${count}. ${s.names[i]}`,
+        coords: [...topPts, ...botPts]
+      });
+      count++;
+    }
+  });
 
-        // Subdivide o polígono base até obter exatamente N polígonos
-        function subdivideToCount(basePoly, targetCount) {
-            let cells = [basePoly];
-
-            while (cells.length < targetCount) {
-                // Ordena por área decrescente para manter os polígonos equilibrados
-                cells.sort((a, b) => polygonArea(b) - polygonArea(a));
-                const largest = cells.shift();
-
-                // Calcula o centroide e a caixa delimitadora
-                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                let cx = 0, cy = 0;
-                for (const p of largest) {
-                    if (p.x < minX) minX = p.x;
-                    if (p.x > maxX) maxX = p.x;
-                    if (p.y < minY) minY = p.y;
-                    if (p.y > maxY) maxY = p.y;
-                    cx += p.x;
-                    cy += p.y;
-                }
-                cx /= largest.length;
-                cy /= largest.length;
-
-                // Define um ângulo de corte perpendicular ao eixo maior + variação orgânica
-                const width = maxX - minX;
-                const height = maxY - minY;
-                const baseAngle = width > height ? Math.PI / 2 : 0;
-                const jitterAngle = (Math.random() - 0.5) * 0.7;
-                const angle = baseAngle + jitterAngle;
-
-                // Pequeno deslocamento do centro para evitar grid simétrico
-                const offsetX = cx + (Math.random() - 0.5) * width * 0.2;
-                const offsetY = cy + (Math.random() - 0.5) * height * 0.2;
-
-                const p1 = { x: offsetX, y: offsetY };
-                const p2 = { x: offsetX + Math.cos(angle) * 100, y: offsetY + Math.sin(angle) * 100 };
-
-                const part1 = clipPolygon(largest, p1, p2, true);
-                const part2 = clipPolygon(largest, p1, p2, false);
-
-                if (part1.length >= 3 && part2.length >= 3) {
-                    cells.push(part1, part2);
-                } else {
-                    // Fallback caso o corte falhe
-                    cells.push(largest);
-                    break;
-                }
-            }
-            return cells;
-        }
-
-        function desenharMapa() {
-            const continent = getContinentPolygon();
-
-            // 1. Pinta todo o fundo com o OCEANO AZUL
-            ctx.fillStyle = '#1b4f72';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Salva o estado do contexto antes de aplicar a máscara
-            ctx.save();
-
-            // 2. Cria o caminho do continente e aplica como MÁSCARA (clip)
-            // Isso impede matematicamente qualquer traço interno de vazar para o oceano
-            ctx.beginPath();
-            continent.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
-            ctx.closePath();
-            ctx.clip();
-
-            // 3. Preenche a base inteira do continente de BRANCO SÓLIDO
-            // Garante que antialiasing nas bordas dos 150 polígonos nunca deixe o azul aparecer
-            ctx.fillStyle = '#ffffff';
-            ctx.fill();
-
-            // 4. Desenha os 150 polígonos internos
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-
-            poligonos.forEach((poly, index) => {
-                ctx.beginPath();
-                poly.forEach((p, i) => {
-                    if (i === 0) ctx.moveTo(p.x, p.y);
-                    else ctx.lineTo(p.x, p.y);
-                });
-                ctx.closePath();
-
-                // Preenchimento branco (ou destaque ao passar o mouse)
-                ctx.fillStyle = (index === poligonoHover) ? '#e2e8f0' : '#ffffff';
-                ctx.fill();
-
-                // Divisa interna sutil
-                ctx.strokeStyle = '#94a3b8';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-            });
-
-            // 5. Reforça a borda interna branca na costa para selar qualquer micro-fresta de subpixel
-            ctx.beginPath();
-            continent.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
-            ctx.closePath();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-
-            // Restaura o contexto (remove a máscara de recorte)
-            ctx.restore();
-
-            // 6. Contorno final nítido da costa sobre o oceano
-            ctx.beginPath();
-            continent.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
-            ctx.closePath();
-            ctx.strokeStyle = '#0f293a';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-        }
-
-        function gerarMapa() {
-            const continent = getContinentPolygon();
-            poligonos = subdivideToCount(continent, 150);
-            desenharMapa();
-            infoText.textContent = `Mapa gerado com exatamente ${poligonos.length} polígonos.`;
-        }
-
-        // Interatividade: detecta em qual polígono o mouse está
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
-            let found = -1;
-            for (let i = 0; i < poligonos.length; i++) {
-                ctx.beginPath();
-                poligonos[i].forEach((p, idx) => {
-                    if (idx === 0) ctx.moveTo(p.x, p.y);
-                    else ctx.lineTo(p.x, p.y);
-                });
-                ctx.closePath();
-                if (ctx.isPointInPath(mouseX, mouseY)) {
-                    found = i;
-                    break;
-                }
-            }
-            if (found !== poligonoHover) {
-            poligonoHover = found;
-            desenharMapa();
-            infoText.textContent = found !== -1
-            ? Região #${found + 1} de ${poligonos.length}
-            : Mapa gerado com exatamente ${poligonos.length} polígonos.;
-            }
+  islands.forEach(isl => {
+    list.push({
+      id: isl.id,
+      name: `${count}. ${isl.name}`,
+      coords: isl.coords
     });
-// Inicializa o mapa
+    count++;
+  });
+
+  return list;
+}
+
+function buildPath(territory, w, h) {
+  const path = new Path2D();
+  territory.coords.forEach(([lon, lat], idx) => {
+    const pt = geoToCanvas(lon, lat, w, h);
+    if (idx === 0) path.moveTo(pt.x, pt.y);
+    else path.lineTo(pt.x, pt.y);
+  });
+  path.closePath();
+  return path;
+}
+
+function draw() {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = '#1d4ed8';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  territories.forEach(t => {
+    const path = buildPath(t, w, h);
+    t._path = path;
+
+    const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
+    const isSelected = selectedTerritory && selectedTerritory.id === t.id;
+
+    ctx.fillStyle = isSelected ? '#bfdbfe' : (isHovered ? '#e2e8f0' : '#ffffff');
+    ctx.fill(path);
+
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.stroke(path);
+  });
+
+  territories.forEach(t => {
+    const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
+    const isSelected = selectedTerritory && selectedTerritory.id === t.id;
+
+    ctx.lineWidth = isSelected ? 2.2 : (isHovered ? 1.6 : 0.9);
+    ctx.strokeStyle = isSelected ? '#0f172a' : '#334155';
+    ctx.stroke(t._path);
+  });
+}
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
+}
+
+// Função global chamada pelo botão ou na inicialização
+window.gerarMapa = function() {
+  hoveredTerritory = null;
+  selectedTerritory = null;
+  territories = buildTerritories();
+  resizeCanvas();
+};
+
+canvas.addEventListener('mousemove', (e) => {
+  const mx = e.clientX;
+Use o código com cuidado.
+const my = e.clientY;
+let found = null;
+for (let i = territories.length - 1; i >= 0; i--) {
+if (territories[i]._path && ctx.isPointInPath(territories[i]._path, mx, my)) {
+found = territories[i];
+break;
+}
+}
+if (found !== hoveredTerritory) {
+hoveredTerritory = found;
+draw();
+}
+if (found) {
+tooltip.style.display = 'block';
+tooltip.style.left = ${mx + 12}px;
+tooltip.style.top = ${my + 12}px;
+tooltip.textContent = found.name;
+} else {
+tooltip.style.display = 'none';
+}
+});
+canvas.addEventListener('click', () => {
+if (hoveredTerritory) {
+selectedTerritory = hoveredTerritory;
+draw();
+}
+});
+window.addEventListener('resize', resizeCanvas);
 gerarMapa();
