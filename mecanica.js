@@ -1,17 +1,25 @@
 const LOCAL_JSON_URL = "./mapa-dados.json";
 
-const CLASSES_BIOMA = {
-  1: "andes", 2: "atacama", 3: "valdiv", 4: "patag",
-  5: "llanos", 6: "amaz", 7: "caat", 8: "cerrado",
-  9: "pant", 10: "mata", 11: "pampa", 12: "espinal"
+const CORES_BIOMA = {
+  0: "#38bdf8", // mar
+  1: "#64748b", // andes
+  2: "#d97706", // atacama
+  3: "#065f46", // valdiviana
+  4: "#d6d3d1", // patagonia
+  5: "#fde047", // llanos
+  6: "#15803d", // amazonia
+  7: "#fb923c", // caatinga
+  8: "#eab308", // cerrado
+  9: "#84cc16", // pantanal
+  10: "#4ade80", // mata_atlantica
+  11: "#bef264", // pampa
+  12: "#a3a380"  // espinal
 };
 
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
 const dom = {
-  svg: document.getElementById('svg'),
-  mapa: document.getElementById('mapa'),
-  rios: document.getElementById('camada-rios'),
-  ghost: document.getElementById('ghost'),
-  pecas: document.getElementById('pecas'),
   aviso: document.getElementById('aviso'),
   btnModo: document.getElementById('btn-modo'),
   btnPass: document.getElementById('btn-pass'),
@@ -28,6 +36,7 @@ const state = {
   turn: 1,
   caps: { team1: 0, team2: 0 },
   lastMove: null,
+  hoverVertex: null,
   landOnly: true
 };
 
@@ -40,58 +49,152 @@ function initBoard() {
   state.lastMove = null;
 }
 
-// =========================================================================
-// 1. CARREGAMENTO E RENDERIZAÇÃO DO MAPA
-// =========================================================================
 async function carregarMapa() {
   try {
     const res = await fetch(LOCAL_JSON_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     state.mapa = await res.json();
 
     if (state.mapa.config) {
       state.cols = state.mapa.config.colunas || 30;
       state.rows = state.mapa.config.linhas || 40;
       state.cell = state.mapa.config.tamanhoCelula || 60;
+      canvas.width = state.cols * state.cell;
+      canvas.height = state.rows * state.cell;
     }
 
     initBoard();
-    desenharBiomas(state.mapa.grid);
-    desenharRios(state.mapa.rios);
     setAviso("Configure os jogadores para começar!");
     render();
   } catch (err) {
-    setAviso("Erro ao carregar mapa-dados.json. Verifique o arquivo no repositório.");
-    console.error("Falha ao carregar JSON:", err);
+    setAviso("Erro ao carregar mapa-dados.json.");
+    console.error(err);
   }
-}
-
-function desenharBiomas(grid = []) {
-  if (!dom.mapa || !Array.isArray(grid)) return;
-  let rects = "";
-  for (let y = 0; y < grid.length; y++) {
-    for (let x = 0; x < grid[y].length; x++) {
-      const cod = grid[y][x];
-      if (cod > 0 && CLASSES_BIOMA[cod]) {
-        rects += `<rect x="${x}" y="${y}" width="1" height="1" class="${CLASSES_BIOMA[cod]}" />`;
-      }
-    }
-  }
-  dom.mapa.innerHTML = rects;
-}
-
-function desenharRios(rios = []) {
-  if (!dom.rios || !Array.isArray(rios)) return;
-  dom.rios.innerHTML = rios.map(r => {
-    const d = r.vertices.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
-    return `<path class="rio" d="${d}"><title>${r.nome}</title></path>` +
-           `<circle cx="${r.nascente.x}" cy="${r.nascente.y}" r="0.14" class="nascente"><title>Nascente: ${r.nome}</title></circle>`;
-  }).join('');
 }
 
 // =========================================================================
-// 2. REGRAS DE TERRENO & MOTOR DO GO
+// RENDERIZAÇÃO EM CAMADAS NO CANVAS (DE BAIXO PARA CIMA)
+// =========================================================================
+function render() {
+  const c = state.cell;
+
+  // 1. Fundo (Oceano)
+  ctx.fillStyle = CORES_BIOMA[0];
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!state.mapa) return;
+
+  // 2. Biomas
+  for (let y = 0; y < state.rows; y++) {
+    for (let x = 0; x < state.cols; x++) {
+      const cod = state.mapa.grid[y][x];
+      if (cod > 0 && CORES_BIOMA[cod]) {
+        ctx.fillStyle = CORES_BIOMA[cod];
+        ctx.fillRect(x * c, y * c, c, c);
+      }
+    }
+  }
+
+  // 3. Malha Quadriculada (Grid)
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let x = 0; x <= state.cols; x++) {
+    ctx.moveTo(x * c, 0);
+    ctx.lineTo(x * c, canvas.height);
+  }
+  for (let y = 0; y <= state.rows; y++) {
+    ctx.moveTo(0, y * c);
+    ctx.lineTo(canvas.width, y * c);
+  }
+  ctx.stroke();
+
+  // 4. Rios e Nascentes
+  (state.mapa.rios || []).forEach(r => {
+    if (!r.vertices?.length) return;
+    ctx.strokeStyle = "#0284c7";
+    ctx.lineWidth = c * 0.09;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    r.vertices.forEach(([vx, vy], i) => {
+      if (i === 0) ctx.moveTo(vx * c, vy * c);
+      else ctx.lineTo(vx * c, vy * c);
+    });
+    ctx.stroke();
+
+    // Nascente
+    ctx.fillStyle = "#0369a1";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = c * 0.04;
+    ctx.beginPath();
+    ctx.arc(r.nascente.x * c, r.nascente.y * c, c * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // 5. Prévia da Jogada (Ghost)
+  if (state.hoverVertex) {
+    const { vx, vy } = state.hoverVertex;
+    const jogador = getJogadorAtual();
+    const valid = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows &&
+                  state.board[vy][vx] === null && (!state.landOnly || isLand(vx, vy));
+    if (valid && jogador) {
+      desenharPeca(vx, vy, state.turn, jogador.cor, 0.5);
+    }
+  }
+
+  // 6. Peças Jogadas
+  for (let y = 1; y < state.rows; y++) {
+    for (let x = 1; x < state.cols; x++) {
+      const cel = state.board[y][x];
+      if (cel) desenharPeca(x, y, cel.equipe, cel.cor, 1);
+    }
+  }
+
+  // 7. Marcador da Última Jogada
+  if (state.lastMove) {
+    ctx.fillStyle = "#ef4444";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = c * 0.02;
+    ctx.beginPath();
+    ctx.arc(state.lastMove.x * c, state.lastMove.y * c, c * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  atualizarPontuacaoEInterface(state.caps);
+}
+
+function desenharPeca(vx, vy, equipe, cor, alpha = 1) {
+  const c = state.cell;
+  const cx = vx * c;
+  const cy = vy * c;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = cor;
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = c * 0.06;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+
+  if (equipe === 1) {
+    ctx.arc(cx, cy, c * 0.36, 0, Math.PI * 2);
+  } else {
+    ctx.moveTo(cx, cy - c * 0.42);
+    ctx.lineTo(cx - c * 0.38, cy + c * 0.32);
+    ctx.lineTo(cx + c * 0.38, cy + c * 0.32);
+    ctx.closePath();
+  }
+
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// =========================================================================
+// REGRAS DO JOGO & EVENTOS
 // =========================================================================
 const celulasAdjacentes = (vx, vy) => [
   [vx - 1, vy - 1], [vx, vy - 1],
@@ -110,18 +213,14 @@ function getBiomaNoVertice(vx, vy) {
   if (!state.mapa) return "";
   for (const [x, y] of celulasAdjacentes(vx, vy)) {
     const cod = state.mapa.grid[y][x];
-    if (cod > 0 && state.mapa.terrenos?.[cod]) {
-      return state.mapa.terrenos[cod].nome;
-    }
+    if (cod > 0 && state.mapa.terrenos?.[cod]) return state.mapa.terrenos[cod].nome;
   }
   return "Oceano";
 }
 
 function neighbors(vx, vy) {
   return [[vx, vy - 1], [vx, vy + 1], [vx - 1, vy], [vx + 1, vy]].filter(([x, y]) =>
-    x >= 1 && x < state.cols &&
-    y >= 1 && y < state.rows &&
-    (!state.landOnly || isLand(x, y))
+    x >= 1 && x < state.cols && y >= 1 && y < state.rows && (!state.landOnly || isLand(x, y))
   );
 }
 
@@ -182,56 +281,35 @@ function play(vx, vy) {
 
   state.lastMove = { x: vx, y: vy };
   state.turn = avancarTurnoAlternado();
-
   setAviso(captured ? `Captura! +${captured} ponto(s) para a equipe.` : "");
   render();
 }
 
-// =========================================================================
-// 3. RENDERIZAÇÃO DE PEÇAS & CONTROLES
-// =========================================================================
-const shapeSVG = (x, y, equipe, cor, extra = "") => equipe === 1
-  ? `<circle cx="${x}" cy="${y}" r="0.36" fill="${cor}" class="peca ${extra}" />`
-  : `<polygon points="${x},${y - 0.42} ${x - 0.38},${y + 0.32} ${x + 0.38},${y + 0.32}" fill="${cor}" class="peca ${extra}" />`;
-
-function render() {
-  let html = "";
-  for (let y = 1; y < state.rows; y++) {
-    for (let x = 1; x < state.cols; x++) {
-      const celula = state.board[y][x];
-      if (celula) html += shapeSVG(x, y, celula.equipe, celula.cor);
-    }
-  }
-  if (state.lastMove) {
-    html += `<circle cx="${state.lastMove.x}" cy="${state.lastMove.y}" r="0.09" class="last" />`;
-  }
-  dom.pecas.innerHTML = html;
-
-  atualizarPontuacaoEInterface(state.caps);
-}
-
 function getVertex(e) {
-  const pt = dom.svg.createSVGPoint();
-  pt.x = e.clientX;
-  pt.y = e.clientY;
-  const p = pt.matrixTransform(dom.svg.getScreenCTM().inverse());
-  return { vx: Math.round(p.x / state.cell), vy: Math.round(p.y / state.cell) };
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+  return { vx: Math.round(x / state.cell), vy: Math.round(y / state.cell) };
 }
 
-dom.svg.addEventListener('mousemove', e => {
+canvas.addEventListener('mousemove', e => {
   if (!state.mapa) return;
   const { vx, vy } = getVertex(e);
-  const inBounds = vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows;
-  const valid = inBounds && state.board[vy][vx] === null && (!state.landOnly || isLand(vx, vy));
-  const jogador = getJogadorAtual();
-  dom.ghost.innerHTML = (valid && jogador) ? shapeSVG(vx, vy, state.turn, jogador.cor, "ghost") : "";
-  if (inBounds) {
+  state.hoverVertex = { vx, vy };
+  if (vx >= 1 && vx < state.cols && vy >= 1 && vy < state.rows) {
     setAviso(`Vértice (${vx}, ${vy}) — Bioma: ${getBiomaNoVertice(vx, vy)}`);
   }
+  render();
 });
 
-dom.svg.addEventListener('mouseleave', () => { dom.ghost.innerHTML = ""; });
-dom.svg.addEventListener('click', e => {
+canvas.addEventListener('mouseleave', () => {
+  state.hoverVertex = null;
+  render();
+});
+
+canvas.addEventListener('click', e => {
   const { vx, vy } = getVertex(e);
   play(vx, vy);
 });
