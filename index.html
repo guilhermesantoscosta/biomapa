@@ -3,113 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mapa da América Rotacionado</title>
+  <title>Mapa da América - Contorno dos Países</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%;
       height: 100%;
-      background: #0b1320;
-      color: #e2e8f0;
+      background: #1d4ed8;
       font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
-    }
-    header {
-      padding: 10px 16px;
-      background: #111c30;
-      border-bottom: 1px solid #1e293b;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-size: 14px;
-    }
-    .legend {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      font-size: 12px;
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      display: inline-block;
-    }
-    #canvas-container {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      min-height: 400px;
     }
     canvas {
       display: block;
       width: 100%;
       height: 100%;
-      cursor: crosshair;
+      cursor: pointer;
     }
     #tooltip {
       position: absolute;
       pointer-events: none;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid #38bdf8;
-      padding: 8px 12px;
-      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 4px;
       font-size: 13px;
+      font-weight: 600;
       display: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
   </style>
 </head>
 <body>
 
-<header>
-  <div><strong>América (Deitada: ← Norte | Sul →)</strong></div>
-  <div class="legend">
-    <span><i class="dot" style="background:#94a3b8"></i>Tundra / Alta Montanha</span>
-    <span><i class="dot" style="background:#2d6a4f"></i>Florestas Boreais/Temperadas</span>
-    <span><i class="dot" style="background:#eab308"></i>Pradarias / Campos</span>
-    <span><i class="dot" style="background:#d97706"></i>Desertos / Semiárido</span>
-    <span><i class="dot" style="background:#84cc16"></i>Savanas / Chaco / Cerrado</span>
-    <span><i class="dot" style="background:#10b981"></i>Florestas Tropicais</span>
-  </div>
-</header>
-
-<div id="canvas-container">
-  <canvas id="mapCanvas"></canvas>
-  <div id="tooltip"></div>
-</div>
+<canvas id="mapCanvas"></canvas>
+<div id="tooltip"></div>
 
 <script>
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
 const tooltip = document.getElementById('tooltip');
 
-const BIOMES = {
-  TUNDRA_MONTANHA: { name: 'Tundra / Alta Montanha', color: '#94a3b8' },
-  FLORESTA_TEMP:   { name: 'Florestas Boreais e Temperadas', color: '#2d6a4f' },
-  PRADARIAS:       { name: 'Pradarias, Estepes e Pampas', color: '#eab308' },
-  DESERTO:         { name: 'Desertos e Semiárido', color: '#d97706' },
-  SAVANA_CHACO:    { name: 'Savanas, Cerrado e Chaco', color: '#84cc16' },
-  FLORESTA_TROP:   { name: 'Florestas Tropicais Úmidas', color: '#10b981' }
-};
-
+// Converte [Longitude, Latitude] reais para Canvas deitado (Norte à Esquerda, Sul à Direita)
 function geoToCanvas(lon, lat, width, height) {
-  const latMax = 74;
-  const latMin = -57;
-  const lonMax = -32;
-  const lonMin = -168;
+  const latMax = 74;   // Extremo Norte -> Esquerda
+  const latMin = -57;  // Extremo Sul -> Direita
+  const lonMax = -32;  // Extremo Leste -> Topo
+  const lonMin = -168; // Extremo Oeste -> Base
 
-  const padX = 40;
-  const padY = 40;
+  const padX = 30;
+  const padY = 30;
   const usableW = width - padX * 2;
   const usableH = height - padY * 2;
 
@@ -122,166 +63,124 @@ function geoToCanvas(lon, lat, width, height) {
   };
 }
 
-const territories = [
-  { id: 'alasca', name: 'Alasca (EUA)', biome: 'TUNDRA_MONTANHA', coords: [[-166,68], [-141,70], [-141,60], [-152,58], [-164,55], [-166,60]] },
-  { id: 'canada_norte', name: 'Canadá (Ártico / Tundra)', biome: 'TUNDRA_MONTANHA', coords: [[-141,70], [-110,73], [-80,72], [-65,62], [-80,55], [-110,58], [-141,60]] },
-  { id: 'canada_sul', name: 'Canadá (Boreal / Temperado)', biome: 'FLORESTA_TEMP', coords: [[-141,60], [-110,58], [-80,55], [-65,62], [-55,48], [-67,45], [-82,42], [-95,49], [-123,49], [-132,54]] },
-  { id: 'eua_oeste', name: 'EUA (Oeste / Desertos e Rochosas)', biome: 'DESERTO', coords: [[-123,49], [-105,49], [-103,32], [-114,32], [-118,34], [-124,42]] },
-  { id: 'eua_centro', name: 'EUA (Grandes Planícies)', biome: 'PRADARIAS', coords: [[-105,49], [-90,48], [-90,30], [-97,26], [-103,32]] },
-  { id: 'eua_leste', name: 'EUA (Florestas Temperadas)', biome: 'FLORESTA_TEMP', coords: [[-90,48], [-67,45], [-75,35], [-81,25], [-84,30], [-90,30]] },
-  { id: 'mexico_norte', name: 'México (Norte Árido)', biome: 'DESERTO', coords: [[-114,32], [-97,26], [-97,21], [-105,21], [-112,28]] },
-  { id: 'mexico_sul', name: 'México (Mesoamérica Tropical)', biome: 'FLORESTA_TROP', coords: [[-105,21], [-97,21], [-87,21], [-88,18], [-92,15], [-98,16]] },
-  { id: 'america_central', name: 'América Central (7 Países)', biome: 'FLORESTA_TROP', coords: [[-92,15], [-88,18], [-83,15], [-83,10], [-77,8], [-78,9], [-85,11], [-90,14]] },
-  { id: 'cuba_caribe', name: 'Caribe Insular (Cuba, Hispaniola, etc.)', biome: 'FLORESTA_TROP', coords: [[-85,22], [-74,20], [-66,18], [-61,13], [-62,11], [-72,18], [-80,20]] },
-  { id: 'colombia_venezuela', name: 'Colômbia & Venezuela', biome: 'FLORESTA_TROP', coords: [[-77,8], [-72,12], [-61,10], [-60,4], [-67,1], [-70,-1], [-75,0], [-78,2]] },
-  { id: 'guianas', name: 'Guiana, Suriname & G. Francesa', biome: 'FLORESTA_TROP', coords: [[-61,8], [-52,4], [-53,2], [-59,2], [-60,4]] },
-  { id: 'andes_norte_centro', name: 'Equador & Peru (Andes / Costa)', biome: 'TUNDRA_MONTANHA', coords: [[-78,2], [-75,0], [-70,-4], [-69,-15], [-71,-18], [-76,-14], [-81,-5], [-80,0]] },
-  { id: 'amazonia_br', name: 'Brasil (Amazônia)', biome: 'FLORESTA_TROP', coords: [[-70,-1], [-67,1], [-60,4], [-59,2], [-53,2], [-50,1], [-48,-2], [-48,-10], [-56,-13], [-65,-11], [-70,-8]] },
-  { id: 'caatinga_br', name: 'Brasil (Caatinga / Nordeste)', biome: 'DESERTO', coords: [[-48,-2], [-35,-6], [-38,-13], [-44,-14], [-46,-7]] },
-  { id: 'cerrado_pantanal_br', name: 'Brasil (Cerrado & Pantanal)', biome: 'SAVANA_CHACO', coords: [[-48,-10], [-46,-7], [-44,-14], [-47,-21], [-55,-23], [-58,-18], [-56,-13]] },
-  { id: 'mata_atlantica_br', name: 'Brasil (Mata Atlântica)', biome: 'FLORESTA_TROP', coords: [[-38,-13], [-39,-18], [-42,-23], [-49,-28], [-52,-28], [-55,-23], [-47,-21], [-44,-14]] },
-  { id: 'bolivia_paraguai', name: 'Bolívia & Paraguai (Chaco / Savanas)', biome: 'SAVANA_CHACO', coords: [[-69,-11], [-65,-11], [-58,-18], [-55,-23], [-55,-27], [-62,-25], [-66,-22], [-69,-17]] },
-  { id: 'chile', name: 'Chile (Atacama ao Sul Temperado)', biome: 'TUNDRA_MONTANHA', coords: [[-71,-18], [-69,-22], [-70,-33], [-72,-45], [-68,-54], [-74,-53], [-74,-42], [-72,-30], [-71,-20]] },
-  { id: 'uruguai_pampa_arg', name: 'Uruguai & Pampa Argentino', biome: 'PRADARIAS', coords: [[-55,-27], [-52,-28], [-53,-34], [-58,-38], [-64,-38], [-66,-28], [-62,-25]] },
-  { id: 'patagonia_arg', name: 'Argentina (Patagônia / Estepes)', biome: 'PRADARIAS', coords: [[-64,-38], [-58,-38], [-65,-46], [-67,-54], [-68,-54], [-72,-45], [-70,-33], [-66,-28]] }
+// Países e grandes blocos territoriais simplificados [Lon, Lat]
+const countries = [
+  // América do Norte
+  { id: 'alasca', name: 'EUA (Alasca)', coords: [[-166,68], [-141,70], [-141,60], [-152,58], [-164,55], [-166,60]] },
+  { id: 'canada', name: 'Canadá', coords: [[-141,70], [-110,73], [-80,72], [-65,62], [-55,48], [-67,45], [-82,42], [-95,49], [-123,49], [-132,54], [-141,60]] },
+  { id: 'eua', name: 'Estados Unidos', coords: [[-123,49], [-95,49], [-82,42], [-67,45], [-75,35], [-81,25], [-84,30], [-90,30], [-97,26], [-103,32], [-114,32], [-118,34], [-124,42]] },
+  { id: 'mexico', name: 'México', coords: [[-114,32], [-103,32], [-97,26], [-97,21], [-87,21], [-88,18], [-92,15], [-98,16], [-105,21], [-112,28]] },
+
+  // América Central e Caribe
+  { id: 'guatemala', name: 'Guatemala', coords: [[-92,17.8], [-89.2,17.8], [-89.2,15.5], [-90,14], [-92,15]] },
+  { id: 'belize', name: 'Belize', coords: [[-89.2,18], [-88,18], [-88.2,16], [-89.2,16]] },
+  { id: 'honduras', name: 'Honduras', coords: [[-89.2,15.5], [-83.2,15], [-85,13.5], [-87.5,13.2]] },
+  { id: 'el_salvador', name: 'El Salvador', coords: [[-90,14], [-87.5,13.2], [-88,13], [-90,13.7]] },
+  { id: 'nicaragua', name: 'Nicarágua', coords: [[-87.5,13.2], [-83.2,15], [-83.6,11], [-85.7,11]] },
+  { id: 'costa_rica', name: 'Costa Rica', coords: [[-85.7,11], [-83.6,11], [-82.8,9.5], [-83.5,8.5], [-85.5,10]] },
+  { id: 'panama', name: 'Panamá', coords: [[-82.8,9.5], [-77.5,8.5], [-78,7.5], [-81.5,8], [-83.5,8.5]] },
+  { id: 'cuba', name: 'Cuba', coords: [[-84.8,22], [-79,22.5], [-74.2,20.2], [-77.5,19.8], [-82,21.5]] },
+  { id: 'hispaniola', name: 'Haiti & Rep. Dominicana', coords: [[-74.2,19.8], [-68.4,18.6], [-71.5,17.8], [-74.4,18.4]] },
+
+  // América do Sul
+  { id: 'colombia', name: 'Colômbia', coords: [[-77.5,8.5], [-72,12], [-67,6], [-67,1.5], [-70,-1], [-75,0], [-78,2], [-77.5,6]] },
+  { id: 'venezuela', name: 'Venezuela', coords: [[-72,12], [-61,10], [-60,5], [-64,1.5], [-67,1.5], [-67,6], [-71,9]] },
+  { id: 'guiana', name: 'Guiana', coords: [[-61,8], [-57,6], [-58,2], [-60,2], [-60,5]] },
+  { id: 'suriname', name: 'Suriname', coords: [[-57,6], [-54,5.8], [-54.5,2.2], [-58,2]] },
+  { id: 'guiana_francesa', name: 'Guiana Francesa', coords: [[-54,5.8], [-51.8,4.2], [-52.5,2.2], [-54.5,2.2]] },
+  { id: 'equador', name: 'Equador', coords: [[-80,1], [-78,2], [-75,0], [-76,-3], [-80,-4.5], [-81,-1.5]] },
+  { id: 'peru', name: 'Peru', coords: [[-81,-4.5], [-76,-3], [-75,0], [-70,-1], [-70,-7], [-69,-13], [-71,-18], [-76,-14], [-81,-6]] },
+  { id: 'brasil', name: 'Brasil', coords: [[-70,-1], [-67,1.5], [-64,1.5], [-60,5], [-60,2], [-54.5,2.2], [-52.5,2.2], [-50,1], [-48,-2], [-35,-6], [-38,-13], [-39,-18], [-42,-23], [-49,-28], [-53,-33], [-57,-30], [-55,-24], [-58,-18], [-60,-14], [-65,-11], [-70,-8]] },
+  { id: 'bolivia', name: 'Bolívia', coords: [[-69,-11], [-65,-11], [-60,-14], [-58,-18], [-58,-20], [-62,-22], [-67,-22], [-69,-17]] },
+  { id: 'paraguai', name: 'Paraguai', coords: [[-62,-22], [-58,-20], [-55,-24], [-55,-27], [-58,-27], [-61,-24]] },
+  { id: 'chile', name: 'Chile', coords: [[-71,-18], [-69,-22], [-70,-33], [-72,-45], [-68,-54], [-74,-53], [-74,-42], [-72,-30], [-71,-20]] },
+  { id: 'argentina', name: 'Argentina', coords: [[-67,-22], [-62,-22], [-61,-24], [-58,-27], [-55,-27], [-57,-30], [-58,-35], [-58,-38], [-65,-46], [-67,-54], [-68,-54], [-72,-45], [-70,-33], [-69,-22]] },
+  { id: 'uruguai', name: 'Uruguai', coords: [[-57,-30], [-53,-33], [-54,-34.8], [-58,-34.5]] }
 ];
 
-let hoveredTerritory = null;
-let selectedTerritory = null;
+let hoveredCountry = null;
+let selectedCountry = null;
 
 function resizeCanvas() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width || window.innerWidth;
-  canvas.height = rect.height || (window.innerHeight - 60);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
   draw();
 }
 
-function drawGrid() {
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
-  ctx.lineWidth = 1;
-  ctx.font = '11px sans-serif';
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
-
-  for (let lat = 60; lat >= -50; lat -= 20) {
-    const p1 = geoToCanvas(-168, lat, w, h);
-    const p2 = geoToCanvas(-32, lat, w, h);
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-    ctx.fillText(`Lat ${lat}°`, p1.x + 4, 20);
-  }
-
-  const eq1 = geoToCanvas(-168, 0, w, h);
-  const eq2 = geoToCanvas(-32, 0, w, h);
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-  ctx.setLineDash([6, 4]);
-  ctx.beginPath();
-  ctx.moveTo(eq1.x, eq1.y);
-  ctx.lineTo(eq2.x, eq2.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText('EQUADOR (0°)', eq1.x + 6, 34);
-}
-
-function buildTerritoryPath(territory, w, h) {
+function buildPath(country, w, h) {
   const path = new Path2D();
-  territory.coords.forEach(([lon, lat], index) => {
+  country.coords.forEach(([lon, lat], idx) => {
     const pt = geoToCanvas(lon, lat, w, h);
-    if (index === 0) path.moveTo(pt.x, pt.y);
+    if (idx === 0) path.moveTo(pt.x, pt.y);
     else path.lineTo(pt.x, pt.y);
   });
   path.closePath();
   return path;
 }
 
-function getCentroid(territory, w, h) {
-  let sx = 0, sy = 0;
-  territory.coords.forEach(([lon, lat]) => {
-    const pt = geoToCanvas(lon, lat, w, h);
-    sx += pt.x;
-    sy += pt.y;
-  });
-  return { x: sx / territory.coords.length, y: sy / territory.coords.length };
-}
-
 function draw() {
   const w = canvas.width;
   const h = canvas.height;
 
-  ctx.fillStyle = '#0b1320';
+  // Oceano em azul
+  ctx.fillStyle = '#1d4ed8';
   ctx.fillRect(0, 0, w, h);
 
-  drawGrid();
+  // Continente e países em branco com contorno escuro
+  countries.forEach(country => {
+    const path = buildPath(country, w, h);
+    country._path = path;
 
-  territories.forEach(t => {
-    const path = buildTerritoryPath(t, w, h);
-    t._path = path;
+    const isHovered = hoveredCountry && hoveredCountry.id === country.id;
+    const isSelected = selectedCountry && selectedCountry.id === country.id;
 
-    const biomeInfo = BIOMES[t.biome];
-    const isHovered = hoveredTerritory && hoveredTerritory.id === t.id;
-    const isSelected = selectedTerritory && selectedTerritory.id === t.id;
-
-    ctx.fillStyle = biomeInfo.color;
-    ctx.globalAlpha = isSelected ? 1.0 : (isHovered ? 0.92 : 0.78);
+    // Preenchimento branco (leve destaque cinza/azul claro apenas ao passar o mouse ou selecionar)
+    ctx.fillStyle = isSelected ? '#dbeafe' : (isHovered ? '#f1f5f9' : '#ffffff');
     ctx.fill(path);
-    ctx.globalAlpha = 1.0;
 
-    ctx.lineWidth = isSelected ? 3 : (isHovered ? 2.2 : 1.2);
-    ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#38bdf8' : '#0f172a');
+    // Contorno dos países
+    ctx.lineWidth = isSelected ? 2.5 : 1.3;
+    ctx.strokeStyle = isSelected ? '#0f172a' : '#334155';
     ctx.stroke(path);
-
-    const center = getCentroid(t, w, h);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(t.id.toUpperCase(), center.x, center.y);
   });
-
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('← NORTE (Ártico)', 16, h - 14);
-  ctx.textAlign = 'right';
-  ctx.fillText('SUL (Antártica) →', w - 16, h - 14);
 }
 
 canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-Use o código com cuidado.
-const mx = e.clientX - rect.left;
-const my = e.clientY - rect.top;
-let found = null;
-for (let i = territories.length - 1; i >= 0; i--) {
-if (territories[i]._path && ctx.isPointInPath(territories[i]._path, mx, my)) {
-found = territories[i];
-break;
-}
-}
-if (found !== hoveredTerritory) {
-hoveredTerritory = found;
-draw();
-}
-if (found) {
-const biome = BIOMES[found.biome];
-tooltip.style.display = 'block';
-tooltip.style.left = ${mx + 14}px;
-tooltip.style.top = ${my + 14}px;
-tooltip.innerHTML = <strong>${found.name}</strong><br/> <span style="color:${biome.color}">■</span> ${biome.name};
-} else {
-tooltip.style.display = 'none';
-}
+  const mx = e.clientX;
+  const my = e.clientY;
+
+  let found = null;
+  for (let i = countries.length - 1; i >= 0; i--) {
+    if (countries[i]._path && ctx.isPointInPath(countries[i]._path, mx, my)) {
+      found = countries[i];
+      break;
+    }
+  }
+
+  if (found !== hoveredCountry) {
+    hoveredCountry = found;
+    draw();
+  }
+
+  if (found) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = `${mx + 12}px`;
+    tooltip.style.top = `${my + 12}px`;
+    tooltip.textContent = found.name;
+  } else {
+    tooltip.style.display = 'none';
+  }
 });
+
 canvas.addEventListener('click', () => {
-if (hoveredTerritory) {
-selectedTerritory = hoveredTerritory;
-draw();
-console.log('Território selecionado:', selectedTerritory);
-}
+  if (hoveredCountry) {
+    selectedCountry = hoveredCountry;
+    draw();
+  }
 });
+
 window.addEventListener('resize', resizeCanvas);
-window.addEventListener('load', resizeCanvas);
 resizeCanvas();
+</script>
+</body>
+</html>
