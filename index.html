@@ -1,26 +1,228 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Go: Biomas da América do Sul</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biomapa - Estratégia Ambiental</title>
   <style>
-    body { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #1e272e; color: #f5f6fa; font-family: sans-serif; }
-    canvas { border: 3px solid #485460; background: #2980b9; cursor: pointer; }
-    #hud { margin-top: 12px; display: flex; gap: 20px; align-items: center; }
-    button { padding: 6px 14px; cursor: pointer; background: #dcdde1; border: none; border-radius: 4px; font-weight: bold; }
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --accent: #0284c7;
+      --accent-hover: #38bdf8;
+      --green: #16a34a;
+      --red: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px;
+      min-height: 100vh;
+    }
+
+    /* Modais */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.92);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      padding: 16px;
+    }
+    .modal-overlay.hidden { display: none !important; }
+
+    .modal-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); }
+    .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+
+    .lista-jogadores { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .jogador-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-dark);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .badge-equipe { font-size: 13px; font-weight: 700; min-width: 95px; color: var(--text-muted); }
+    .cor-fixa { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; flex-shrink: 0; }
+    .jogador-row input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .btn-remove {
+      background: transparent;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+    .btn-remove:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+    .setup-actions { display: flex; gap: 10px; margin-top: 12px; }
+    button {
+      background: var(--border);
+      color: #fff;
+      border: 1px solid #475569;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    button:hover { background: #475569; }
+    button.ativo { background: var(--accent); border-color: var(--accent-hover); }
+
+    .btn-add { flex: 1; background: var(--accent); border-color: var(--accent-hover); padding: 10px; font-size: 14px; }
+    .btn-add:hover { background: #0369a1; }
+    .btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { flex: 2; background: var(--green); border-color: #22c55e; padding: 10px; font-size: 15px; }
+    .btn-primary:hover { background: #15803d; }
+
+    /* HUD */
+    .hud {
+      width: 100%;
+      max-width: 900px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .hud-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+    .turno { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
+    .cor-indicador { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
+    .placar { display: flex; gap: 16px; font-size: 14px; color: var(--text-muted); }
+    .placar strong { color: #fff; font-size: 16px; }
+    .controles { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .objetivo-card {
+      background: var(--bg-dark);
+      border-left: 4px solid var(--accent-hover);
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .objetivo-info h4 { font-size: 14px; color: var(--accent-hover); margin-bottom: 2px; }
+    .objetivo-info p { font-size: 12px; color: var(--text-muted); }
+    .objetivo-pts {
+      background: var(--bg-panel);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      border: 1px solid var(--border);
+    }
+
+    .aviso { width: 100%; text-align: center; font-size: 13px; color: #fbbf24; min-height: 18px; }
+
+    /* Tabuleiro Canvas */
+    .board {
+      width: 100%;
+      max-width: 880px;
+      aspect-ratio: 3/4;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 3px solid var(--border);
+      background: #38bdf8;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
   </style>
 </head>
 <body>
-  <canvas id="board" width="800" height="600"></canvas>
-  <div id="hud">
-    <span id="status">Turno: Protetores</span>
-    <span id="score">Capturas — Protetores: 0 | Pentágonos: 0</span>
-    <button id="passBtn">Passar Turno</button>
-    <button id="resetBtn">Reiniciar</button>
+
+  <!-- MODAL DE CONFIGURAÇÃO -->
+  <div class="modal-overlay" id="modal-setup">
+    <div class="modal-box">
+      <h2>🌎 Biomapa: Configurar Jogadores</h2>
+      <p>Insira os nomes (mínimo 2, máximo 10). Os turnos alternam entre <strong>● Defensores</strong> e <strong>▲ Expansão</strong>.</p>
+      <div class="lista-jogadores" id="lista-jogadores"></div>
+      <div class="setup-actions">
+        <button type="button" class="btn-add" id="btn-add-jogador">+ Jogador (2/10)</button>
+        <button type="button" class="btn-primary" id="btn-iniciar">Iniciar Partida</button>
+      </div>
+    </div>
   </div>
 
-  <script src="mapa.js"></script>
-  <script src="jogadores.js"></script>
-  <script src="mecanica.js"></script>
+  <!-- MODAL DE PLACAR GERAL -->
+  <div class="modal-overlay hidden" id="modal-placar">
+    <div class="modal-box">
+      <h2>🏆 Placar da Partida</h2>
+      <div id="conteudo-placar" style="margin: 14px 0; font-size: 14px; line-height: 1.6;"></div>
+      <button type="button" class="btn-primary" style="width: 100%;" onclick="document.getElementById('modal-placar').classList.add('hidden')">Fechar</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <header class="hud">
+    <div class="hud-top">
+      <div class="turno" id="turno">Aguardando jogadores...</div>
+      <div class="placar">
+        <span>● Defensores: <strong id="c1">0</strong> pts</span>
+        <span>▲ Expansão: <strong id="c2">0</strong> pts</span>
+      </div>
+      <div class="controles">
+        <button type="button" id="btn-modo" class="ativo">Só Continente</button>
+        <button type="button" id="btn-pass">Passar</button>
+        <button type="button" id="btn-placar">Placar Geral</button>
+        <button type="button" id="btn-reset">Nova Partida</button>
+      </div>
+    </div>
+
+    <div class="objetivo-card">
+      <div class="objetivo-info">
+        <h4 id="obj-titulo">Objetivo Ambiental</h4>
+        <p id="obj-desc">Configure os jogadores para sortear as missões.</p>
+      </div>
+      <div class="objetivo-pts" id="obj-pts">0 pts</div>
+    </div>
+
+    <div class="aviso" id="aviso"></div>
+  </header>
+
+  <!-- TABULEIRO CANVAS -->
+  <main class="board">
+    <canvas id="canvas" width="1800" height="2400"></canvas>
+  </main>
+
+  <script src="./jogadores.js"></script>
+  <script src="./mecanica.js"></script>
 </body>
 </html>
