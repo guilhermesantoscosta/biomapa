@@ -263,32 +263,31 @@
 
         // Interatividade: detecta em qual polígono o mouse está
         canvas.addEventListener('mousemove', (e) => {
-Use o código com cuidado.
-const rect = canvas.getBoundingClientRect();
-const scaleX = canvas.width / rect.width;
-const scaleY = canvas.height / rect.height;
-const mouseX = (e.clientX - rect.left) * scaleX;
-const mouseY = (e.clientY - rect.top) * scaleY;
-let found = -1;
-for (let i = 0; i < poligonos.length; i++) {
-ctx.beginPath();
-poligonos[i].forEach((p, idx) => {
-if (idx === 0) ctx.moveTo(p.x, p.y);
-else ctx.lineTo(p.x, p.y);
-});
-ctx.closePath();
-if (ctx.isPointInPath(mouseX, mouseY)) {
-found = i;
-break;
-}
-}
-if (found !== poligonoHover) {
-poligonoHover = found;
-desenharMapa();
-infoText.textContent = found !== -1
-? Região #${found + 1} de ${poligonos.length}
-: Mapa gerado com exatamente ${poligonos.length} polígonos.;
-}
-});
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+            let found = -1;
+            for (let i = 0; i < poligonos.length; i++) {
+                ctx.beginPath();
+                poligonos[i].forEach((p, idx) => {
+                    if (idx === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.closePath();
+                if (ctx.isPointInPath(mouseX, mouseY)) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found !== poligonoHover) {
+            poligonoHover = found;
+            desenharMapa();
+            infoText.textContent = found !== -1
+            ? Região #${found + 1} de ${poligonos.length}
+            : Mapa gerado com exatamente ${poligonos.length} polígonos.;
+            }
+    });
 // Inicializa o mapa
 gerarMapa();
