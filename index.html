@@ -17,16 +17,6 @@
       --red: #ef4444;
     }
 
-    .fronteira-brasil {
-      fill: none;
-      stroke: #000000;
-      stroke-width: 0.08;
-      stroke-linejoin: round;
-      stroke-linecap: round;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     
     body {
@@ -43,7 +33,7 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.94);
+      background: rgba(15, 23, 42, 0.92);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -55,52 +45,39 @@
     .modal-box {
       background: var(--bg-panel);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 14px;
       padding: 24px;
-      max-width: 480px;
+      max-width: 560px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
       box-shadow: 0 20px 40px rgba(0,0,0,0.6);
     }
-    .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); font-size: 22px; }
-    .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4; }
+    .modal-box h2 { margin-bottom: 6px; color: var(--accent-hover); }
+    .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
 
     .lista-jogadores {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 16px;
+      gap: 8px;
+      margin-bottom: 14px;
     }
 
     .jogador-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: var(--bg-dark);
-      padding: 10px 14px;
-      border-radius: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
       border: 1px solid var(--border);
     }
 
     .badge-equipe {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 6px;
-      min-width: 96px;
-      text-align: center;
-      background: #1e293b;
-    }
-    .badge-defensor { color: #fdba74; border: 1px solid #9a3412; }
-    .badge-expansao { color: #93c5fd; border: 1px solid #1e40af; }
-
-    .cor-fixa {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: 2px solid #fff;
-      flex-shrink: 0;
+      min-width: 95px;
+      color: var(--text-muted);
     }
 
     .jogador-row input[type="text"] {
@@ -108,18 +85,27 @@
       background: transparent;
       border: none;
       color: #fff;
-      font-size: 15px;
+      font-size: 14px;
       outline: none;
+    }
+
+    .jogador-row input[type="color"] {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
     }
 
     .btn-remove {
       background: transparent;
       border: 1px solid #475569;
       color: #94a3b8;
-      padding: 5px 9px;
-      font-size: 13px;
+      padding: 4px 8px;
+      font-size: 12px;
       border-radius: 6px;
-      cursor: pointer;
     }
     .btn-remove:hover { background: var(--red); border-color: var(--red); color: #fff; }
 
@@ -132,8 +118,8 @@
     .btn-add {
       flex: 1;
       background: var(--accent);
-      border: 1px solid var(--accent-hover);
-      padding: 12px;
+      border-color: var(--accent-hover);
+      padding: 10px;
       font-size: 14px;
     }
     .btn-add:hover { background: #0369a1; }
@@ -142,8 +128,8 @@
     .btn-primary {
       flex: 2;
       background: var(--green);
-      border: 1px solid #22c55e;
-      padding: 12px;
+      border-color: #22c55e;
+      padding: 10px;
       font-size: 15px;
     }
     .btn-primary:hover { background: #15803d; }
@@ -159,7 +145,7 @@
       margin-bottom: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
     .hud-top {
@@ -194,6 +180,29 @@
     }
     button:hover { background: #475569; }
     button.ativo { background: var(--accent); border-color: var(--accent-hover); }
+
+    /* Carta de Objetivo do Jogador Atual */
+    .objetivo-card {
+      background: var(--bg-dark);
+      border-left: 4px solid var(--accent-hover);
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .objetivo-info h4 { font-size: 14px; color: var(--accent-hover); margin-bottom: 2px; }
+    .objetivo-info p { font-size: 12px; color: var(--text-muted); }
+    .objetivo-pts {
+      background: var(--bg-panel);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      border: 1px solid var(--border);
+    }
 
     .aviso {
       width: 100%;
@@ -232,26 +241,29 @@
     .pampa   { fill: #bef264; }
     .espinal { fill: #a3a380; }
 
-    /* Rios e Peças */
+    /* Fronteiras e Hidrografia */
+    .borda-br { stroke: #052e16; stroke-width: 0.08; fill: none; stroke-linecap: square; }
     .rio      { stroke: #0284c7; stroke-width: 0.09; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .nascente { fill: #0369a1; stroke: #fff; stroke-width: 0.04; }
-    .peca     { stroke: #0f172a; stroke-width: 0.06; stroke-linejoin: round; }
-    .ghost    { opacity: 0.5; pointer-events: none; }
-    .last     { fill: #ef4444; stroke: #fff; stroke-width: 0.02; pointer-events: none; }
+
+    /* Peças */
+    .peca  { stroke: #0f172a; stroke-width: 0.06; stroke-linejoin: round; }
+    .ghost { opacity: 0.5; pointer-events: none; }
+    .last  { fill: #ef4444; stroke: #fff; stroke-width: 0.02; pointer-events: none; }
   </style>
 </head>
 <body>
 
-  <!-- MODAL DE CONFIGURAÇÃO (2 A 10 JOGADORES) -->
+  <!-- MODAL DE CONFIGURAÇÃO DE JOGADORES -->
   <div class="modal-overlay" id="modal-setup">
     <div class="modal-box">
-      <h2>🌎 Biomapa: Configurar Partida</h2>
-      <p>Escolha de <strong>2 a 10 jogadores</strong>. As cores em tons pastel já estão definidas por equipe: <strong>● Defensores</strong> contra <strong>▲ Expansão</strong>.</p>
+      <h2>🌎 Biomapa: Configurar Jogadores</h2>
+      <p>Insira os nomes e escolha uma cor para cada participante (mínimo 2, máximo 16). Os turnos alternam entre <strong>● Defensores</strong> e <strong>▲ Expansão</strong>.</p>
       
       <div class="lista-jogadores" id="lista-jogadores"></div>
 
       <div class="setup-actions">
-        <button type="button" class="btn-add" id="btn-add-jogador">+ Jogador (2/10)</button>
+        <button type="button" class="btn-add" id="btn-add-jogador">+ Adicionar Jogador</button>
         <button type="button" class="btn-primary" id="btn-iniciar">Iniciar Partida</button>
       </div>
     </div>
@@ -260,7 +272,7 @@
   <!-- PAINEL SUPERIOR (HUD) -->
   <header class="hud">
     <div class="hud-top">
-      <div class="turno" id="turno">Aguardando início...</div>
+      <div class="turno" id="turno">Aguardando jogadores...</div>
       <div class="placar">
         <span>● Defensores: <strong id="c1">0</strong> pts</span>
         <span>▲ Expansão: <strong id="c2">0</strong> pts</span>
@@ -268,15 +280,26 @@
       <div class="controles">
         <button type="button" id="btn-modo" class="ativo">Só Continente</button>
         <button type="button" id="btn-pass">Passar</button>
+        <button type="button" id="btn-placar">Placar Geral</button>
         <button type="button" id="btn-reset">Nova Partida</button>
       </div>
     </div>
+
+    <!-- Carta de Objetivo do Jogador da Vez -->
+    <div class="objetivo-card" id="objetivo-card">
+      <div class="objetivo-info">
+        <h4 id="obj-titulo">Objetivo Ambiental</h4>
+        <p id="obj-desc">Adicione os jogadores para sortear as missões.</p>
+      </div>
+      <div class="objetivo-pts" id="obj-pts">0 pts</div>
+    </div>
+
     <div class="aviso" id="aviso"></div>
   </header>
 
   <!-- TABULEIRO SVG -->
   <main class="board">
-    <svg> id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
+    <svg id="svg" viewBox="0 0 1800 2400" xmlns="http://w3.org">
       <defs>
         <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
           <path d="M 0 60 H 60 V 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity="0.35" />
@@ -295,20 +318,3 @@
         <path class="caat"    d="M23,6h2v1h-2z M23,7h4v1h-4z M23,8h5v1h-5z M23,9h4v2h-4z M23,11h3v1h-3z" />
         <path class="cerrado" d="M22,8h1v1h-1z M21,9h2v1h-2z M19,10h4v1h-4z M18,11h5v1h-5z M11,11h3v1h-3z M16,12h7v2h-7z M16,14h6v1h-6z M16,15h4v3h-4z" />
         <path class="pant"    d="M14,11h2v1h-2z M8,12h8v1H8z M7,13h9v1H7z M10,14h6v2h-6z M10,16h6v2h-6z" />
-        <path class="mata"    d="M27,7h1v1h-1z M28,8h1v1h-1z M27,9h1v2h-1z M26,11h1v1h-1z M23,12h4v2h-4z M22,14h4v1h-4z M20,15h5v1h-5z M18,16h6v1h-6z M18,17h5v1h-5z M19,18h3v1h-3z" />
-        <path class="pampa"   d="M14,18h5v2h-5z M13,20h5v2h-5z M12,22h4v2h-4z" />
-        <path class="espinal" d="M10,18h4v2h-4z M10,20h3v2h-3z M10,22h2v2h-2z" />
-      </g>
-
-      <rect width="100%" height="100%" fill="url(#grid)" pointer-events="none" />
-      <g transform="scale(60)" id="camada-fronteira" pointer-events="none"></g>
-      <g transform="scale(60)" id="camada-rios"></g>
-      <g transform="scale(60)" id="ghost"></g>
-      <g transform="scale(60)" id="pecas"></g>
-    </svg>
-  </main>
-
-  <script src="jogadores.js"></script>
-  <script src="mecanica.js"></script>
-</body>
-</html>
