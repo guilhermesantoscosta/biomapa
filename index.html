@@ -1,186 +1,93 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mapa da América - Contorno dos Países</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa do Continente Americano Rotacionado (-90°)</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: #1d4ed8;
-      font-family: system-ui, -apple-system, sans-serif;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #1e6091; /* Azul do oceano */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
     }
-    canvas {
-      display: block;
+
+    svg {
       width: 100%;
       height: 100%;
-      cursor: pointer;
+      display: block;
     }
-    #tooltip {
-      position: absolute;
-      pointer-events: none;
-      background: rgba(15, 23, 42, 0.9);
-      color: #ffffff;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 600;
-      display: none;
+
+    .pais {
+      fill: #ffffff;          /* Áreas continentais e ilhas em branco */
+      stroke: #000000;        /* Contorno e divisas em linha preta */
+      stroke-width: 0.8px;    /* Espessura da linha */
+      stroke-linejoin: round; /* Suaviza os encontros das linhas */
+    }
+
+    .pais:hover {
+      fill: #f0f0f0;          /* Leve destaque ao passar o mouse (opcional) */
     }
   </style>
 </head>
 <body>
 
-<canvas id="mapCanvas"></canvas>
-<div id="tooltip"></div>
+  <svg id="mapa"></svg>
 
-<script>
-const canvas = document.getElementById('mapCanvas');
-const ctx = canvas.getContext('2d');
-const tooltip = document.getElementById('tooltip');
+  <!-- Bibliotecas D3.js e TopoJSON via CDN -->
+  <script src="https://d3js.org"></script>
+  <script src="https://unpkg.com"></script>
 
-// Converte [Longitude, Latitude] reais para Canvas deitado (Norte à Esquerda, Sul à Direita)
-function geoToCanvas(lon, lat, width, height) {
-  const latMax = 74;   // Extremo Norte -> Esquerda
-  const latMin = -57;  // Extremo Sul -> Direita
-  const lonMax = -32;  // Extremo Leste -> Topo
-  const lonMin = -168; // Extremo Oeste -> Base
+  <script>
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-  const padX = 30;
-  const padY = 30;
-  const usableW = width - padX * 2;
-  const usableH = height - padY * 2;
+    const svg = d3.select("#mapa")
+      .attr("viewBox", `0 0 ${width} ${height}`);
 
-  const normX = (latMax - lat) / (latMax - latMin);
-  const normY = (lonMax - lon) / (lonMax - lonMin);
+    // Códigos numéricos ISO 3166-1 dos países e territórios do continente americano
+    const codigosAmericas = new Set([
+      124, 840, 484, 304, 60, 666, // América do Norte e Groenlândia
+      84, 188, 222, 320, 340, 558, 591, // América Central
+      44, 52, 192, 212, 214, 308, 332, 388, 630, 659, 662, 670, 780, 796, 850, 92, 136, 531, 533, 534, 535, 312, 474, 652, 663, // Caribe
+      32, 68, 76, 152, 170, 218, 238, 254, 328, 600, 604, 740, 858, 862 // América do Sul e Malvinas
+    ]);
 
-  return {
-    x: padX + normX * usableW,
-    y: padY + normY * usableH
-  };
-}
+    // Carrega a malha mundial em polígonos (resolução 50m para incluir ilhas)
+    d3.json("https://jsdelivr.net").then(world => {
+      
+      // Extrai todos os países e filtra apenas o continente americano
+      const todosPaises = topojson.feature(world, world.objects.countries).features;
+      const americas = {
+        type: "FeatureCollection",
+        features: todosPaises.filter(d => codigosAmericas.has(Number(d.id)))
+      };
 
-// Países e grandes blocos territoriais simplificados [Lon, Lat]
-const countries = [
-  // América do Norte
-  { id: 'alasca', name: 'EUA (Alasca)', coords: [[-166,68], [-141,70], [-141,60], [-152,58], [-164,55], [-166,60]] },
-  { id: 'canada', name: 'Canadá', coords: [[-141,70], [-110,73], [-80,72], [-65,62], [-55,48], [-67,45], [-82,42], [-95,49], [-123,49], [-132,54], [-141,60]] },
-  { id: 'eua', name: 'Estados Unidos', coords: [[-123,49], [-95,49], [-82,42], [-67,45], [-75,35], [-81,25], [-84,30], [-90,30], [-97,26], [-103,32], [-114,32], [-118,34], [-124,42]] },
-  { id: 'mexico', name: 'México', coords: [[-114,32], [-103,32], [-97,26], [-97,21], [-87,21], [-88,18], [-92,15], [-98,16], [-105,21], [-112,28]] },
+      // Configura a projeção Mercator com rotação de 90° anti-horário (roll = -90)
+      // O array [lambda, phi, gamma] controla [longitude, latitude, rotação]
+      const projection = d3.geoMercator()
+        .rotate([85, 0, -90]) 
+        .fitExtent([[30, 30], [width - 30, height - 30]], americas);
 
-  // América Central e Caribe
-  { id: 'guatemala', name: 'Guatemala', coords: [[-92,17.8], [-89.2,17.8], [-89.2,15.5], [-90,14], [-92,15]] },
-  { id: 'belize', name: 'Belize', coords: [[-89.2,18], [-88,18], [-88.2,16], [-89.2,16]] },
-  { id: 'honduras', name: 'Honduras', coords: [[-89.2,15.5], [-83.2,15], [-85,13.5], [-87.5,13.2]] },
-  { id: 'el_salvador', name: 'El Salvador', coords: [[-90,14], [-87.5,13.2], [-88,13], [-90,13.7]] },
-  { id: 'nicaragua', name: 'Nicarágua', coords: [[-87.5,13.2], [-83.2,15], [-83.6,11], [-85.7,11]] },
-  { id: 'costa_rica', name: 'Costa Rica', coords: [[-85.7,11], [-83.6,11], [-82.8,9.5], [-83.5,8.5], [-85.5,10]] },
-  { id: 'panama', name: 'Panamá', coords: [[-82.8,9.5], [-77.5,8.5], [-78,7.5], [-81.5,8], [-83.5,8.5]] },
-  { id: 'cuba', name: 'Cuba', coords: [[-84.8,22], [-79,22.5], [-74.2,20.2], [-77.5,19.8], [-82,21.5]] },
-  { id: 'hispaniola', name: 'Haiti & Rep. Dominicana', coords: [[-74.2,19.8], [-68.4,18.6], [-71.5,17.8], [-74.4,18.4]] },
+      const pathGenerator = d3.geoPath().projection(projection);
 
-  // América do Sul
-  { id: 'colombia', name: 'Colômbia', coords: [[-77.5,8.5], [-72,12], [-67,6], [-67,1.5], [-70,-1], [-75,0], [-78,2], [-77.5,6]] },
-  { id: 'venezuela', name: 'Venezuela', coords: [[-72,12], [-61,10], [-60,5], [-64,1.5], [-67,1.5], [-67,6], [-71,9]] },
-  { id: 'guiana', name: 'Guiana', coords: [[-61,8], [-57,6], [-58,2], [-60,2], [-60,5]] },
-  { id: 'suriname', name: 'Suriname', coords: [[-57,6], [-54,5.8], [-54.5,2.2], [-58,2]] },
-  { id: 'guiana_francesa', name: 'Guiana Francesa', coords: [[-54,5.8], [-51.8,4.2], [-52.5,2.2], [-54.5,2.2]] },
-  { id: 'equador', name: 'Equador', coords: [[-80,1], [-78,2], [-75,0], [-76,-3], [-80,-4.5], [-81,-1.5]] },
-  { id: 'peru', name: 'Peru', coords: [[-81,-4.5], [-76,-3], [-75,0], [-70,-1], [-70,-7], [-69,-13], [-71,-18], [-76,-14], [-81,-6]] },
-  { id: 'brasil', name: 'Brasil', coords: [[-70,-1], [-67,1.5], [-64,1.5], [-60,5], [-60,2], [-54.5,2.2], [-52.5,2.2], [-50,1], [-48,-2], [-35,-6], [-38,-13], [-39,-18], [-42,-23], [-49,-28], [-53,-33], [-57,-30], [-55,-24], [-58,-18], [-60,-14], [-65,-11], [-70,-8]] },
-  { id: 'bolivia', name: 'Bolívia', coords: [[-69,-11], [-65,-11], [-60,-14], [-58,-18], [-58,-20], [-62,-22], [-67,-22], [-69,-17]] },
-  { id: 'paraguai', name: 'Paraguai', coords: [[-62,-22], [-58,-20], [-55,-24], [-55,-27], [-58,-27], [-61,-24]] },
-  { id: 'chile', name: 'Chile', coords: [[-71,-18], [-69,-22], [-70,-33], [-72,-45], [-68,-54], [-74,-53], [-74,-42], [-72,-30], [-71,-20]] },
-  { id: 'argentina', name: 'Argentina', coords: [[-67,-22], [-62,-22], [-61,-24], [-58,-27], [-55,-27], [-57,-30], [-58,-35], [-58,-38], [-65,-46], [-67,-54], [-68,-54], [-72,-45], [-70,-33], [-69,-22]] },
-  { id: 'uruguai', name: 'Uruguai', coords: [[-57,-30], [-53,-33], [-54,-34.8], [-58,-34.5]] }
-];
-
-let hoveredCountry = null;
-let selectedCountry = null;
-
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  draw();
-}
-
-function buildPath(country, w, h) {
-  const path = new Path2D();
-  country.coords.forEach(([lon, lat], idx) => {
-    const pt = geoToCanvas(lon, lat, w, h);
-    if (idx === 0) path.moveTo(pt.x, pt.y);
-    else path.lineTo(pt.x, pt.y);
-  });
-  path.closePath();
-  return path;
-}
-
-function draw() {
-  const w = canvas.width;
-  const h = canvas.height;
-
-  // Oceano em azul
-  ctx.fillStyle = '#1d4ed8';
-  ctx.fillRect(0, 0, w, h);
-
-  // Continente e países em branco com contorno escuro
-  countries.forEach(country => {
-    const path = buildPath(country, w, h);
-    country._path = path;
-
-    const isHovered = hoveredCountry && hoveredCountry.id === country.id;
-    const isSelected = selectedCountry && selectedCountry.id === country.id;
-
-    // Preenchimento branco (leve destaque cinza/azul claro apenas ao passar o mouse ou selecionar)
-    ctx.fillStyle = isSelected ? '#dbeafe' : (isHovered ? '#f1f5f9' : '#ffffff');
-    ctx.fill(path);
-
-    // Contorno dos países
-    ctx.lineWidth = isSelected ? 2.5 : 1.3;
-    ctx.strokeStyle = isSelected ? '#0f172a' : '#334155';
-    ctx.stroke(path);
-  });
-}
-
-canvas.addEventListener('mousemove', (e) => {
-  const mx = e.clientX;
-  const my = e.clientY;
-
-  let found = null;
-  for (let i = countries.length - 1; i >= 0; i--) {
-    if (countries[i]._path && ctx.isPointInPath(countries[i]._path, mx, my)) {
-      found = countries[i];
-      break;
-    }
-  }
-
-  if (found !== hoveredCountry) {
-    hoveredCountry = found;
-    draw();
-  }
-
-  if (found) {
-    tooltip.style.display = 'block';
-    tooltip.style.left = `${mx + 12}px`;
-    tooltip.style.top = `${my + 12}px`;
-    tooltip.textContent = found.name;
-  } else {
-    tooltip.style.display = 'none';
-  }
-});
-
-canvas.addEventListener('click', () => {
-  if (hoveredCountry) {
-    selectedCountry = hoveredCountry;
-    draw();
-  }
-});
-
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-</script>
+      // Desenha os polígonos no SVG
+      svg.selectAll("path")
+        .data(americas.features)
+        .enter()
+        .append("path")
+        .attr("class", "pais")
+        .attr("d", pathGenerator);
+    });
+  </script>
 </body>
 </html>
